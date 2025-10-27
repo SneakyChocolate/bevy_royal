@@ -1,33 +1,12 @@
-use std::net::UdpSocket;
+use std::net::{SocketAddr, UdpSocket};
 use std::collections::{HashMap, HashSet};
 
 use dodgescrape2::*;
 
-fn main() {
-    App::new()
-        .insert_resource(ClientSocket::new())
-        .insert_resource(CursorPos(Vec2::ZERO))
-        .insert_resource(EntityMap::default())
-        .insert_resource(NetIDMap::default())
-        .add_plugins(DefaultPlugins)
-        .add_systems(Startup, setup)
-        .add_systems(Update, (receive_messages, cursor_position_system, player_movement_system))
-        .run();
-}
-
-#[derive(Resource)]
 pub struct ClientSocket {
     pub socket: UdpSocket,
     pub buf: [u8; 1000],
 }
-
-#[derive(Resource, Default)]
-struct NetIDMap(HashMap<Entity, NetIDType>);
-#[derive(Resource, Default)]
-struct EntityMap(HashMap<NetIDType, Entity>);
-
-#[derive(Component)]
-struct Controlled;
 
 impl ClientSocket {
     pub fn new() -> Self {
@@ -43,14 +22,63 @@ impl ClientSocket {
     }
 }
 
+#[derive(Resource)]
+pub struct IncomingReceiver(crossbeam::channel::Receiver<ServerMessage>);
+#[derive(Resource)]
+pub struct OutgoingSender(crossbeam::channel::Sender<ClientMessage>);
+
+fn main() {
+    let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<ServerMessage>();
+    let (outgoing_sender, outgoing_receiver) = crossbeam::channel::unbounded::<ClientMessage>();
+
+    let network_thread = std::thread::spawn(move || {
+        let mut client_socket = ClientSocket::new();
+        loop {
+            // get from game
+            while let Ok(outgoing_package) = outgoing_receiver.try_recv() {
+                let bytes = outgoing_package.encode();
+                client_socket.send(&bytes);
+            }
+
+            // get from socket
+            let ClientSocket { socket, buf } = &mut client_socket;
+
+            while let Ok((len, addr)) = socket.recv_from(buf) {
+                if let Some(server_message) = ServerMessage::decode(buf) {
+                    incoming_sender.send(server_message);
+                }
+            }
+        }
+    });
+
+    App::new()
+        .insert_resource(IncomingReceiver(incoming_receiver))
+        .insert_resource(OutgoingSender(outgoing_sender))
+        .insert_resource(CursorPos(Vec2::ZERO))
+        .insert_resource(EntityMap::default())
+        .insert_resource(NetIDMap::default())
+        .add_plugins(DefaultPlugins)
+        .add_systems(Startup, setup)
+        .add_systems(Update, (receive_messages, cursor_position_system, player_movement_system))
+        .run();
+}
+
+#[derive(Resource, Default)]
+struct NetIDMap(HashMap<Entity, NetIDType>);
+#[derive(Resource, Default)]
+struct EntityMap(HashMap<NetIDType, Entity>);
+
+#[derive(Component)]
+struct Controlled;
+
 fn setup(
-    socket: Res<ClientSocket>,
+    outgoing_sender: Res<OutgoingSender>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let login_message = ClientMessage::Login;
-    socket.send(&login_message.encode());
+    outgoing_sender.0.send(login_message);
 
     let mut rng = rand::rng();
     // + Spawn static boundary colliders
@@ -91,7 +119,7 @@ fn cursor_position_system(
 fn player_movement_system(
     cursor: Res<CursorPos>,
     player_query: Query<(Entity, &mut Velocity, &Alive), (With<Player>, With<Controlled>)>,
-    mut client_socket: ResMut<ClientSocket>,
+    outgoing_sender: Res<OutgoingSender>,
     mut net_id_map: Res<NetIDMap>,
 ) {
     for (player_entity, mut velocity, alive) in player_query {
@@ -111,43 +139,101 @@ fn player_movement_system(
         }
 
         let net_id = net_id_map.0.get(&player_entity).unwrap();
-        client_socket.send(&ClientMessage::SetVelocity(*net_id, velocity.0.into()).encode());
+        outgoing_sender.0.send(ClientMessage::SetVelocity(*net_id, velocity.0.into()));
     }
 }
 
 fn receive_messages(
+    incoming_receiver: Res<IncomingReceiver>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut client_socket: ResMut<ClientSocket>,
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
     mut enemy_query: Query<&mut Transform, (With<Enemy>, Without<Player>)>, // without are required to exclude the queries
     mut player_query: Query<&mut Transform, (With<Player>, Without<Enemy>)>, // without are required to exclude the queries
 ) {
-    let ClientSocket { socket, buf } = &mut *client_socket;
+    while let Ok(server_message) = incoming_receiver.0.try_recv() {
+        match server_message {
+            ServerMessage::Ok(net_id) => {
+                println!("player was created successfully with id {:?}", net_id);
 
-    while let Ok((len, addr)) = socket.recv_from(buf) {
-        let server_message_option = ServerMessage::decode(&buf[..len]);
-        match server_message_option {
-            Some(server_message) => match server_message {
-                ServerMessage::Ok(net_id) => {
-                    println!("player was created successfully with id {:?}", net_id);
+                if !entity_map.0.contains_key(&net_id) {
+                    let id = commands.spawn((
+                        Controlled,
+                        Camera2d,
+                        Camera {
+                            clear_color: ClearColorConfig::Custom(Color::BLACK),
+                            ..default()
+                        },
+                        Tonemapping::TonyMcMapface,
+                        Bloom::default(),
+                        DebandDither::Enabled,
 
-                    if !entity_map.0.contains_key(&net_id) {
+                        Mesh2d(meshes.add(Circle::new(20.))),
+                        Transform::default(),
+                        Velocity(Vec2::new(0., 0.)),
+                        MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
+                        Player,
+                        Alive(true),
+                        Radius(20.),
+                    )).id();
+
+                    entity_map.0.insert(net_id, id);
+                    net_id_map.0.insert(id, net_id);
+                }
+            },
+            ServerMessage::UpdateEnemies(enemy_packages) => {
+                let mut rng = rand::rng();
+
+                for enemy_package in enemy_packages {
+                    // check if enemy exists on local data
+                    if let Some(enemy_entity) = entity_map.0.get(&enemy_package.net_id) {
+                        if let Ok(mut enemy_transform) = enemy_query.get_mut(*enemy_entity) {
+                             enemy_transform.translation = enemy_package.position.clone().into();
+                        }
+                    }
+
+                    // create enemy if doesn't exist on local data
+                    if !entity_map.0.contains_key(&enemy_package.net_id) {
+                        let material = MeshMaterial2d(materials.add(Color::srgb(
+                            rng.random_range(0.0..4.0),
+                            rng.random_range(0.0..4.0),
+                            rng.random_range(0.0..4.0),
+                        )));
+
                         let id = commands.spawn((
-                            Controlled,
-                            Camera2d,
-                            Camera {
-                                clear_color: ClearColorConfig::Custom(Color::BLACK),
-                                ..default()
-                            },
-                            Tonemapping::TonyMcMapface,
-                            Bloom::default(),
-                            DebandDither::Enabled,
+                            Mesh2d(meshes.add(Circle::new(enemy_package.radius))),
+                            material,
+                            Transform::from_translation(enemy_package.position.into()),
+                            Velocity(Vec2::new(0., 0.)),
+                            Enemy,
+                            Radius(enemy_package.radius),
+                        )).id();
 
+                        entity_map.0.insert(enemy_package.net_id, id);
+                        net_id_map.0.insert(id, enemy_package.net_id);
+                    }
+                }
+            },
+            ServerMessage::UpdatePlayers(players) => {
+                for player in players {
+                    // check if player exists on local data
+                    if let Some(player_entity) = entity_map.0.get(&player.net_id) {
+                        let player_transform_result = player_query.get_mut(*player_entity);
+                        match player_transform_result {
+                            Ok(mut player_transform) => {
+                                player_transform.translation = player.position.clone().into();
+                            },
+                            Err(_) => { },
+                        }
+                    }
+
+                    // create player if doesn't exist on local data
+                    if !entity_map.0.contains_key(&player.net_id) {
+                        let id = commands.spawn((
                             Mesh2d(meshes.add(Circle::new(20.))),
-                            Transform::default(),
+                            Transform::from_translation(player.position.into()),
                             Velocity(Vec2::new(0., 0.)),
                             MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
                             Player,
@@ -155,75 +241,11 @@ fn receive_messages(
                             Radius(20.),
                         )).id();
 
-                        entity_map.0.insert(net_id, id);
-                        net_id_map.0.insert(id, net_id);
+                        entity_map.0.insert(player.net_id, id);
+                        net_id_map.0.insert(id, player.net_id);
                     }
-                },
-                ServerMessage::UpdateEnemies(enemy_packages) => {
-                    let mut rng = rand::rng();
-
-                    for enemy_package in enemy_packages {
-                        // check if enemy exists on local data
-                        if let Some(enemy_entity) = entity_map.0.get(&enemy_package.net_id) {
-                            if let Ok(mut enemy_transform) = enemy_query.get_mut(*enemy_entity) {
-                                 enemy_transform.translation = enemy_package.position.clone().into();
-                            }
-                        }
-
-                        // create enemy if doesn't exist on local data
-                        if !entity_map.0.contains_key(&enemy_package.net_id) {
-                            let material = MeshMaterial2d(materials.add(Color::srgb(
-                                rng.random_range(0.0..4.0),
-                                rng.random_range(0.0..4.0),
-                                rng.random_range(0.0..4.0),
-                            )));
-
-                            let id = commands.spawn((
-                                Mesh2d(meshes.add(Circle::new(enemy_package.radius))),
-                                material,
-                                Transform::from_translation(enemy_package.position.into()),
-                                Velocity(Vec2::new(0., 0.)),
-                                Enemy,
-                                Radius(enemy_package.radius),
-                            )).id();
-
-                            entity_map.0.insert(enemy_package.net_id, id);
-                            net_id_map.0.insert(id, enemy_package.net_id);
-                        }
-                    }
-                },
-                ServerMessage::UpdatePlayers(players) => {
-                    for player in players {
-                        // check if player exists on local data
-                        if let Some(player_entity) = entity_map.0.get(&player.net_id) {
-                            let player_transform_result = player_query.get_mut(*player_entity);
-                            match player_transform_result {
-                                Ok(mut player_transform) => {
-                                    player_transform.translation = player.position.clone().into();
-                                },
-                                Err(_) => { },
-                            }
-                        }
-
-                        // create player if doesn't exist on local data
-                        if !entity_map.0.contains_key(&player.net_id) {
-                            let id = commands.spawn((
-                                Mesh2d(meshes.add(Circle::new(20.))),
-                                Transform::from_translation(player.position.into()),
-                                Velocity(Vec2::new(0., 0.)),
-                                MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
-                                Player,
-                                Alive(true),
-                                Radius(20.),
-                            )).id();
-
-                            entity_map.0.insert(player.net_id, id);
-                            net_id_map.0.insert(id, player.net_id);
-                        }
-                    }
-                },
+                }
             },
-            None => todo!(),
         }
     }
 }

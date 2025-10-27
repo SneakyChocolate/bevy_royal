@@ -59,14 +59,14 @@ fn main() {
     });
 
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugins(PhysicsPlugins::default())
         .insert_resource(IncomingReceiver(incoming_receiver))
         .insert_resource(OutgoingSender(outgoing_sender))
         .insert_resource(Gravity::ZERO)
         .insert_resource(IDCounter(0))
         .insert_resource(EntityMap::default())
         .insert_resource(NetIDMap::default())
+        .add_plugins(DefaultPlugins)
+        .add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, (setup, spawn_enemies))
         .add_systems(Update, (receive_messages, apply_velocity_system, enemy_kill_system, broadcast_enemies, broadcast_players))
         .run();
