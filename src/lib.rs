@@ -1,3 +1,4 @@
+pub use avian2d::prelude::*;
 use bincode::{Decode, Encode};
 pub use rand::Rng;
 pub use bevy::window::PrimaryWindow;
@@ -140,4 +141,12 @@ impl ClientMessage {
 		    Err(_) => None,
 		}
 	}
+}
+
+// Define collision layers
+#[derive(PhysicsLayer, Clone, Copy, Debug, Default)]
+pub enum Layer {
+    #[default]
+    Boundary,
+    Ball,
 }

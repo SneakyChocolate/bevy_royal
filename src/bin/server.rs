@@ -1,7 +1,6 @@
 use std::net::{SocketAddr, UdpSocket};
 use std::collections::HashMap;
 use dodgescrape2::*;
-use avian2d::prelude::*;
 
 const ENEMY_RADIUS: f32 = 20.;
 
@@ -71,15 +70,6 @@ fn main() {
         .add_systems(Update, (receive_messages, apply_velocity_system, enemy_kill_system, broadcast_enemies, broadcast_players))
         .run();
 }
-
-// Define collision layers
-#[derive(PhysicsLayer, Clone, Copy, Debug, Default)]
-enum Layer {
-    #[default]
-    Boundary,
-    Ball,
-}
-
 
 #[derive(Component)]
 pub struct UpdateAddress {

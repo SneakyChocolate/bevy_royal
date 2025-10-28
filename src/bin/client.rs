@@ -33,7 +33,15 @@ fn main() {
 
     let network_thread = std::thread::spawn(move || {
         let mut client_socket = ClientSocket::new();
+        let mut delay_pool: Vec<(f32, ServerMessage)> = Vec::with_capacity(1000);
+        let mut past = std::time::Instant::now();
+
         loop {
+            // delta time
+            let present = std::time::Instant::now();
+            let delta_secs = present.duration_since(past).as_secs_f32();
+            past = present;
+
             // get from game
             while let Ok(outgoing_package) = outgoing_receiver.try_recv() {
                 let bytes = outgoing_package.encode();
@@ -45,8 +53,26 @@ fn main() {
 
             while let Ok((len, addr)) = socket.recv_from(buf) {
                 if let Some(server_message) = ServerMessage::decode(buf) {
-                    incoming_sender.send(server_message);
+                    // incoming_sender.send(server_message);
+                    delay_pool.push((0.2, server_message));
                 }
+            }
+
+            // go through delay pool
+            let mut removed = Vec::<ServerMessage>::new();
+            delay_pool.retain_mut(|(d, sm)| {
+                *d -= delta_secs;
+                if *d < 0. {
+                    removed.push(sm.clone());
+                    false
+                }
+                else {
+                    true
+                }
+            });
+
+            for server_message in removed {
+                incoming_sender.send(server_message);
             }
         }
     });
@@ -95,12 +121,18 @@ fn setup(
             Mesh2d(meshes.add(Rectangle::new(thickness, half_boundary * 2.))),
             wall_material.clone(),
             Transform::from_xyz(pos, 0., 0.),
+            RigidBody::Static,
+            Collider::rectangle(thickness, half_boundary * 2.),
+            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
         ));
         // horizontal walls
         commands.spawn((
             Mesh2d(meshes.add(Rectangle::new(half_boundary * 2., thickness))),
             wall_material.clone(),
             Transform::from_xyz(0., pos, 0.),
+            RigidBody::Static,
+            Collider::rectangle(half_boundary * 2., thickness),
+            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
         ));
     }
 }
