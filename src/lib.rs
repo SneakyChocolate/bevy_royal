@@ -13,19 +13,19 @@ pub type NetIDType = u128;
 #[derive(Resource)]
 pub struct CursorPos(pub Vec2);
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct Velocity(pub Vec2);
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct Radius(pub f32);
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct Player;
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct Alive(pub bool);
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct Enemy;
 
 pub fn random_velocity() -> Vec2 {
@@ -67,6 +67,21 @@ impl Into<MyVec3> for Vec3 {
 }
 
 #[derive(Encode, Decode, Debug, Clone, Copy)]
+pub struct Rotation2d(pub f32);
+
+ impl Into<Quat> for Rotation2d {
+    fn into(self) -> Quat {
+    	Quat::from_rotation_z(self.0.to_radians())
+    }
+}
+
+#[derive(Encode, Decode, Debug, Clone, Copy)]
+pub struct Rotation3d {
+	horizontal: f32,
+	vertical: f32,
+}
+
+#[derive(Encode, Decode, Debug, Clone, Copy)]
 pub struct MyVec2 {
 	x: f32,
 	y: f32,
@@ -101,8 +116,16 @@ pub struct PlayerPackage {
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
+pub struct EntityPackage {
+	pub net_id: NetIDType,
+	pub components: Vec<NetComponent>,
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
 pub enum ServerMessage {
 	Ok(NetIDType), // the id of the player so that it knows which id it is
+	SpawnEntities(Vec<EntityPackage>),
+	UpdateEntities(Vec<EntityPackage>),
 	UpdateEnemies(Vec<EnemyPackage>),
 	UpdatePlayers(Vec<PlayerPackage>),
 }
@@ -149,4 +172,110 @@ pub enum Layer {
     #[default]
     Boundary,
     Ball,
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
+pub enum NetComponent {
+	LinearVelocity(MyVec2),
+	Transform {
+		translation: MyVec3,
+		rotation: Rotation2d,
+		scale: MyVec3,
+	},
+	CircleMesh(f32),
+	ColorMaterial {
+		r: f32,
+		g: f32,
+		b: f32,
+	},
+	Alive(bool),
+	Player,
+	Enemy,
+	Radius(f32),
+}
+
+impl Into<NetComponent> for LinearVelocity {
+    fn into(self) -> NetComponent {
+    	NetComponent::LinearVelocity((*self).into())
+    }
+}
+impl Into<NetComponent> for Transform {
+    fn into(self) -> NetComponent {
+    	NetComponent::Transform {
+	        translation: self.translation.into(),
+	        rotation: Rotation2d(0.), // TODO TEMP
+	        scale: self.scale.into(),
+	    }
+    }
+}
+impl Into<NetComponent> for ColorMaterial {
+    fn into(self) -> NetComponent {
+        let color = self.color.to_srgba();
+        NetComponent::ColorMaterial {
+            r: color.red,
+            g: color.green,
+            b: color.blue,
+        }
+    }
+}
+impl Into<NetComponent> for Alive {
+    fn into(self) -> NetComponent {
+    	NetComponent::Alive(self.0)
+    }
+}
+impl Into<NetComponent> for Player {
+    fn into(self) -> NetComponent {
+    	NetComponent::Player
+    }
+}
+impl Into<NetComponent> for Enemy {
+    fn into(self) -> NetComponent {
+    	NetComponent::Enemy
+    }
+}
+impl Into<NetComponent> for Radius {
+    fn into(self) -> NetComponent {
+    	NetComponent::Radius(self.0)
+    }
+}
+
+
+impl NetComponent {
+    pub fn apply_to(
+    	&self,
+    	entity: &mut EntityCommands,
+	    meshes: &mut ResMut<Assets<Mesh>>,
+	    materials: &mut ResMut<Assets<ColorMaterial>>,
+    ) {
+        match self {
+            NetComponent::Transform { translation, rotation, scale } => {
+                entity.insert(Transform {
+                    translation: (*translation).into(),
+                    rotation: (*rotation).into(),
+                    scale: (*scale).into(),
+                });
+            },
+            NetComponent::LinearVelocity(v) => {
+                entity.insert(LinearVelocity((*v).into()));
+            },
+            NetComponent::CircleMesh(radius) => {
+            	entity.insert(Mesh2d(meshes.add(Circle::new(*radius))));
+            },
+            NetComponent::ColorMaterial { r, g, b } => {
+                entity.insert(MeshMaterial2d(materials.add(Color::srgb(*r, *g, *b))));
+            },
+            NetComponent::Alive(v) => {
+                entity.insert(Alive(*v));
+            },
+            NetComponent::Player => {
+                entity.insert(Player);
+            },
+            NetComponent::Enemy => {
+                entity.insert(Enemy);
+            },
+            NetComponent::Radius(v) => {
+                entity.insert(Radius(*v));
+            },
+        }
+    }
 }

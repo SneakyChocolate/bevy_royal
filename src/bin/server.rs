@@ -67,7 +67,13 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, (setup, spawn_enemies))
-        .add_systems(Update, (receive_messages, apply_velocity_system, enemy_kill_system, broadcast_enemies, broadcast_players))
+        .add_systems(Update, (
+            receive_messages,
+            // apply_velocity_system,
+            enemy_kill_system,
+            broadcast_transform_updates,
+            broadcast_enemy_spawns,
+            broadcast_player_spawns))
         .run();
 }
 
@@ -84,6 +90,8 @@ struct EntityMap(HashMap<NetIDType, Entity>);
 #[derive(Resource)]
 struct IDCounter(pub NetIDType);
 
+#[derive(Component)]
+struct PendingSpawn;
 
 fn receive_messages(
     incoming_receiver: Res<IncomingReceiver>,
@@ -99,15 +107,17 @@ fn receive_messages(
     while let Ok((addr, client_message)) = incoming_receiver.0.try_recv() {
         match client_message {
             ClientMessage::Login => {
+                // spawn player
                 let id = commands.spawn((
                     Transform::from_xyz(200., 0., 1.),
                     Player,
                     Alive(true),
                     Radius(20.),
-                    Velocity(Vec2::new(-200., 0.)),
+                    LinearVelocity(Vec2::new(-200., 0.)),
                     Mesh2d(meshes.add(Circle::new(20.))),
                     MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
                     UpdateAddress {addr},
+                    PendingSpawn,
                 )).id();
 
                 net_id_map.0.insert(id, id_counter.0);
@@ -136,6 +146,71 @@ fn receive_messages(
                     entity_map.0.remove(&player_net_id);
                 }
             },
+        }
+    }
+}
+
+fn broadcast_player_spawns(
+    outgoing_sender: Res<OutgoingSender>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut id_counter: ResMut<IDCounter>,
+    mut net_id_map: ResMut<NetIDMap>,
+    mut entity_map: ResMut<EntityMap>,
+    client_addresses: Query<(Entity, &UpdateAddress), With<PendingSpawn>>,
+    player_query: Query<(Entity, &Transform, &Mesh2d, &LinearVelocity, &MeshMaterial2d<ColorMaterial>, &Player, &Alive, &Radius)>,
+) {
+    for (id, addr) in client_addresses.iter() {
+        let mut entity_packages = Vec::<EntityPackage>::new();
+        for (entity, transform, mesh2d, velocity, meshmaterial2d, player, alive, radius) in &player_query {
+            let net_id = net_id_map.0.get(&entity).unwrap();
+            entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
+                (*transform).into(),
+                NetComponent::CircleMesh(radius.0),
+                (*transform).into(),
+                (*velocity).into(),
+                (materials.get(meshmaterial2d).unwrap().clone()).into(),
+                (*player).into(),
+                (*alive).into(),
+                (*radius).into(),
+            ] });
+        }
+        for chonky in entity_packages.chunks(10) {
+            outgoing_sender.0.send((addr.addr, ServerMessage::SpawnEntities(chonky.to_vec())));
+            commands.entity(id).remove::<PendingSpawn>();
+        }
+    }
+}
+
+fn broadcast_enemy_spawns(
+    outgoing_sender: Res<OutgoingSender>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut id_counter: ResMut<IDCounter>,
+    mut net_id_map: ResMut<NetIDMap>,
+    mut entity_map: ResMut<EntityMap>,
+    client_addresses: Query<(Entity, &UpdateAddress), With<PendingSpawn>>,
+    enemy_query: Query<(Entity, &Transform, &Mesh2d, &LinearVelocity, &MeshMaterial2d<ColorMaterial>, &Enemy, &Radius)>,
+) {
+    for (id, addr) in client_addresses.iter() {
+        let mut entity_packages = Vec::<EntityPackage>::new();
+        for (entity, transform, mesh2d, velocity, meshmaterial2d, enemy, radius) in &enemy_query {
+            let net_id = net_id_map.0.get(&entity).unwrap();
+            entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
+                (*transform).into(),
+                NetComponent::CircleMesh(radius.0),
+                (*transform).into(),
+                (*velocity).into(),
+                (materials.get(meshmaterial2d).unwrap().clone()).into(),
+                (*enemy).into(),
+                (*radius).into(),
+            ] });
+        }
+        for chonky in entity_packages.chunks(10) {
+            outgoing_sender.0.send((addr.addr, ServerMessage::SpawnEntities(chonky.to_vec())));
+            commands.entity(id).remove::<PendingSpawn>();
         }
     }
 }
@@ -178,6 +253,46 @@ fn broadcast_enemies(
         // Split into chunks and send
         for enemy_chunk in nearby_enemies.chunks(ENEMIES_PER_PACKAGE) {
             let message = ServerMessage::UpdateEnemies(enemy_chunk.to_vec());
+            outgoing_sender.0.send((addr.addr, message));
+        }
+    }
+}
+
+fn broadcast_transform_updates(
+    outgoing_sender: Res<OutgoingSender>,
+    client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
+    transform_query: Query<(Entity, &Transform)>,
+    mut net_id_map: ResMut<NetIDMap>,
+) {
+    const BROADCAST_RADIUS: f32 = 500.0;
+    const RADIUS_SQUARED: f32 = BROADCAST_RADIUS * BROADCAST_RADIUS;
+
+    for (id, addr, player_transform) in client_addresses.iter() {
+        let player_pos = player_transform.translation;
+        
+        let mut nearby: Vec<EntityPackage> = transform_query
+            .iter()
+            .filter_map(|(entity, transform)| {
+                let distance_squared = player_pos.distance_squared(transform.translation);
+                
+                if distance_squared <= RADIUS_SQUARED {
+                    let net_id = net_id_map.0.get(&entity)?;
+                    Some(EntityPackage {
+                        net_id: *net_id,
+                        components: vec![NetComponent::Transform {
+                            translation: transform.translation.into(),
+                            rotation: Rotation2d(0.),
+                            scale: Vec3::ONE.into()
+                        }],
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for chonky in nearby.chunks(10) {
+            let message = ServerMessage::UpdateEntities(chonky.to_vec());
             outgoing_sender.0.send((addr.addr, message));
         }
     }
@@ -253,7 +368,7 @@ fn spawn_enemies(
         rng.random_range(0.0..4.0),
     )));
     for &pos in &[-half_boundary, half_boundary] {
-        // vertical walls
+        // spawn vertical walls
         commands.spawn((
             Mesh2d(meshes.add(Rectangle::new(thickness, half_boundary * 2.))),
             wall_material.clone(),
@@ -262,7 +377,7 @@ fn spawn_enemies(
             Collider::rectangle(thickness, half_boundary * 2.),
             CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
         ));
-        // horizontal walls
+        // spawn horizontal walls
         commands.spawn((
             Mesh2d(meshes.add(Rectangle::new(half_boundary * 2., thickness))),
             wall_material.clone(),
@@ -274,7 +389,7 @@ fn spawn_enemies(
     }
 
     for _ in 0..5000 {
-        let velocity = Velocity(random_velocity());
+        let velocity = LinearVelocity(random_velocity());
         let position = random_position(2000.);
         let material = MeshMaterial2d(materials.add(Color::srgb(
             rng.random_range(0.0..4.0),
@@ -282,14 +397,14 @@ fn spawn_enemies(
             rng.random_range(0.0..4.0),
         )));
 
-        // Circle mesh
+        // spawn enemy
         let id = commands.spawn((
             Transform::from_translation(position.extend(0.)),
             Mesh2d(meshes.add(Circle::new(ENEMY_RADIUS))),
             material,
             RigidBody::Dynamic,
             Collider::circle(ENEMY_RADIUS),
-            LinearVelocity(velocity.0),
+            velocity,
             CollisionLayers::new([Layer::Ball], [Layer::Boundary]),
             Restitution::new(1.0), // Perfect bounce (1.0 = 100% energy retained)
             Friction::ZERO.with_combine_rule(CoefficientCombine::Min), // Remove friction
@@ -303,15 +418,15 @@ fn spawn_enemies(
     }
 }
 
-fn apply_velocity_system(
-    time: Res<Time>,
-    query: Query<(&mut Transform, &Velocity)>,
-) {
-    let d = time.delta_secs();
-    for (mut transform, velocity) in query {
-        transform.translation += velocity.0.extend(0.) * d;
-    }
-}
+// fn apply_velocity_system(
+//     time: Res<Time>,
+//     query: Query<(&mut Transform, &Velocity)>,
+// ) {
+//     let d = time.delta_secs();
+//     for (mut transform, velocity) in query {
+//         transform.translation += velocity.0.extend(0.) * d;
+//     }
+// }
 
 fn enemy_kill_system(
     players: Query<(&mut Alive, &Transform, &Radius), With<Player>>,
