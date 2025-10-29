@@ -102,7 +102,7 @@ fn receive_messages(
     mut id_counter: ResMut<IDCounter>,
     mut net_id_map: ResMut<NetIDMap>,
     mut entity_map: ResMut<EntityMap>,
-    mut player_query: Query<&mut Velocity, With<Player>>,
+    mut player_query: Query<&mut LinearVelocity, With<Player>>,
 ) {
     while let Ok((addr, client_message)) = incoming_receiver.0.try_recv() {
         match client_message {
@@ -114,6 +114,7 @@ fn receive_messages(
                     Alive(true),
                     Radius(20.),
                     LinearVelocity(Vec2::new(-200., 0.)),
+                    RigidBody::Dynamic,
                     Mesh2d(meshes.add(Circle::new(20.))),
                     MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
                     UpdateAddress {addr},
@@ -131,13 +132,9 @@ fn receive_messages(
                 let mut player_exists = false;
                 match player_entity_option {
                     Some(player_entity) => {
-                        let mut player_velocity_result = player_query.get_mut(*player_entity);
-                        match player_velocity_result {
-                            Ok(mut player_velocity) => {
-                                player_exists = true;
-                                player_velocity.0 = velocity.into();
-                            },
-                            Err(_) => {},
+                        if let Ok(mut player_velocity) = player_query.get_mut(*player_entity) {
+                            player_exists = true;
+                            player_velocity.0 = velocity.into();
                         }
                     },
                     None => {},

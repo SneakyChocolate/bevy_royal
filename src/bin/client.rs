@@ -84,6 +84,7 @@ fn main() {
         .insert_resource(EntityMap::default())
         .insert_resource(NetIDMap::default())
         .add_plugins(DefaultPlugins)
+        .add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, setup)
         .add_systems(Update, (receive_messages, cursor_position_system, player_movement_system))
         .run();
@@ -190,17 +191,21 @@ fn receive_messages(
             Ok(server_message) => {
                 match server_message {
                     ServerMessage::SpawnEntities(entity_packages) => {
-                        println!("received spawn entities: {:?}", entity_packages);
                         for EntityPackage { net_id, components } in entity_packages {
-                            let mut entity = commands.spawn_empty();
-
-                            for component in components {
-                                component.apply_to(&mut entity, &mut meshes, &mut materials);
+                            if let Some(entity) = entity_map.0.get(&net_id) {
+                                // already exists
                             }
+                            else {
+                                let mut entity = commands.spawn_empty();
 
-                            let id = entity.id();
-                            entity_map.0.insert(net_id, id);
-                            net_id_map.0.insert(id, net_id);
+                                for component in components {
+                                    component.apply_to(&mut entity, &mut meshes, &mut materials);
+                                }
+
+                                let id = entity.id();
+                                entity_map.0.insert(net_id, id);
+                                net_id_map.0.insert(id, net_id);
+                            }
                         }
                     },
                     ServerMessage::UpdateEntities(entity_packages) => {
