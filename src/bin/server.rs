@@ -173,7 +173,7 @@ fn broadcast_player_spawns(
                 (*radius).into(),
             ] });
         }
-        for chonky in entity_packages.chunks(10) {
+        for chonky in entity_packages.chunks(2) {
             outgoing_sender.0.send((addr.addr, ServerMessage::SpawnEntities(chonky.to_vec())));
             commands.entity(id).remove::<PendingSpawn>();
         }
@@ -205,7 +205,7 @@ fn broadcast_enemy_spawns(
                 (*radius).into(),
             ] });
         }
-        for chonky in entity_packages.chunks(10) {
+        for chonky in entity_packages.chunks(2) {
             outgoing_sender.0.send((addr.addr, ServerMessage::SpawnEntities(chonky.to_vec())));
             commands.entity(id).remove::<PendingSpawn>();
         }
@@ -385,7 +385,7 @@ fn spawn_enemies(
         ));
     }
 
-    for _ in 0..5000 {
+    for _ in 0..500 {
         let velocity = LinearVelocity(random_velocity());
         let position = random_position(2000.);
         let material = MeshMaterial2d(materials.add(Color::srgb(

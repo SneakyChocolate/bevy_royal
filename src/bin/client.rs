@@ -54,7 +54,7 @@ fn main() {
             while let Ok((len, addr)) = socket.recv_from(buf) {
                 if let Some(server_message) = ServerMessage::decode(buf) {
                     // incoming_sender.send(server_message);
-                    delay_pool.push((0.2, server_message));
+                    delay_pool.push((0.0, server_message));
                 }
             }
 
@@ -84,7 +84,7 @@ fn main() {
         .insert_resource(EntityMap::default())
         .insert_resource(NetIDMap::default())
         .add_plugins(DefaultPlugins)
-        .add_plugins(PhysicsPlugins::default())
+        // .add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, setup)
         .add_systems(Update, (receive_messages, cursor_position_system, player_movement_system))
         .run();
