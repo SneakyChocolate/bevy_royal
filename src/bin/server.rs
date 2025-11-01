@@ -69,11 +69,15 @@ fn main() {
         .add_systems(Startup, (setup, spawn_enemies))
         .add_systems(Update, (
             receive_messages,
-            // apply_velocity_system,
+            apply_velocity_system,
             enemy_kill_system,
-            broadcast_transform_updates,
+            // TODO FIXME LAGGING
+            // broadcast_transform_updates,
             broadcast_enemy_spawns,
-            broadcast_player_spawns))
+            broadcast_player_spawns,
+            broadcast_enemies,
+            broadcast_players,
+        ))
         .run();
 }
 
@@ -102,7 +106,7 @@ fn receive_messages(
     mut id_counter: ResMut<IDCounter>,
     mut net_id_map: ResMut<NetIDMap>,
     mut entity_map: ResMut<EntityMap>,
-    mut player_query: Query<&mut LinearVelocity, With<Player>>,
+    mut player_query: Query<&mut Velocity, With<Player>>,
 ) {
     while let Ok((addr, client_message)) = incoming_receiver.0.try_recv() {
         match client_message {
@@ -113,8 +117,9 @@ fn receive_messages(
                     Player,
                     Alive(true),
                     Radius(20.),
-                    LinearVelocity(Vec2::new(-200., 0.)),
-                    RigidBody::Dynamic,
+                    Velocity(Vec2::new(-200., 0.)),
+                    // LinearVelocity(Vec2::new(-200., 0.)),
+                    // RigidBody::Dynamic,
                     Mesh2d(meshes.add(Circle::new(20.))),
                     MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
                     UpdateAddress {addr},
@@ -255,6 +260,7 @@ fn broadcast_enemies(
     }
 }
 
+// TODO FIXME LAGGING
 fn broadcast_transform_updates(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
@@ -415,15 +421,15 @@ fn spawn_enemies(
     }
 }
 
-// fn apply_velocity_system(
-//     time: Res<Time>,
-//     query: Query<(&mut Transform, &Velocity)>,
-// ) {
-//     let d = time.delta_secs();
-//     for (mut transform, velocity) in query {
-//         transform.translation += velocity.0.extend(0.) * d;
-//     }
-// }
+fn apply_velocity_system(
+    time: Res<Time>,
+    query: Query<(&mut Transform, &Velocity)>,
+) {
+    let d = time.delta_secs();
+    for (mut transform, velocity) in query {
+        transform.translation += velocity.0.extend(0.) * d;
+    }
+}
 
 fn enemy_kill_system(
     players: Query<(&mut Alive, &Transform, &Radius), With<Player>>,
