@@ -196,7 +196,7 @@ fn receive_messages(
                                 // already exists
                             }
                             else {
-                                let mut entity = commands.spawn_empty();
+                                let mut entity = commands.spawn(( ));
 
                                 for component in components {
                                     component.apply_to(&mut entity, &mut meshes, &mut standard_materials);
@@ -264,7 +264,7 @@ fn receive_messages(
                                             shadows_enabled: true,
                                             intensity: 10_000_000_00.,
                                             range: 2000.0,
-                                            shadow_depth_bias: 0.2,
+                                            shadow_depth_bias: 10.0,
                                             ..default()
                                         },
                                     ),
