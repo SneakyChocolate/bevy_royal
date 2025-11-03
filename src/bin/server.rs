@@ -71,8 +71,6 @@ fn main() {
             receive_messages,
             apply_velocity_system,
             enemy_kill_system,
-            // TODO FIXME LAGGING
-            // broadcast_transform_updates,
             broadcast_enemy_spawns,
             broadcast_player_spawns,
             broadcast_positions,
@@ -222,51 +220,10 @@ fn broadcast_enemy_spawns(
 const ENEMY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<EnemyPackage>() as f32).floor() as usize;
 const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
 
-// TODO FIXME LAGGING
-fn broadcast_transform_updates(
-    outgoing_sender: Res<OutgoingSender>,
-    client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    transform_query: Query<(Entity, &Transform)>,
-    mut net_id_map: ResMut<NetIDMap>,
-) {
-    const BROADCAST_RADIUS: f32 = 500.0;
-    const RADIUS_SQUARED: f32 = BROADCAST_RADIUS * BROADCAST_RADIUS;
-
-    for (id, addr, player_transform) in client_addresses.iter() {
-        let player_pos = player_transform.translation;
-        
-        let mut nearby: Vec<EntityPackage> = transform_query
-            .iter()
-            .filter_map(|(entity, transform)| {
-                let distance_squared = player_pos.distance_squared(transform.translation);
-                
-                if distance_squared <= RADIUS_SQUARED {
-                    let net_id = net_id_map.0.get(&entity)?;
-                    Some(EntityPackage {
-                        net_id: *net_id,
-                        components: vec![NetComponent::Transform {
-                            translation: transform.translation.into(),
-                            rotation: Rotation2d(0.),
-                            scale: Vec3::ONE.into()
-                        }],
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        for chonky in nearby.chunks(10) {
-            let message = ServerMessage::UpdateEntities(chonky.to_vec());
-            outgoing_sender.0.send((addr.addr, message));
-        }
-    }
-}
-
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    query: Query<(Entity, &Transform), With<Player>>,
+    query: Query<(Entity, &Transform)>,
     mut net_id_map: ResMut<NetIDMap>,
 ) {
     const BROADCAST_RADIUS: f32 = 500.0;
