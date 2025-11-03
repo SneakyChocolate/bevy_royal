@@ -266,7 +266,7 @@ fn broadcast_transform_updates(
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    query: Query<(Entity, &Transform)>,
+    query: Query<(Entity, &Transform), With<Player>>,
     mut net_id_map: ResMut<NetIDMap>,
 ) {
     const BROADCAST_RADIUS: f32 = 500.0;

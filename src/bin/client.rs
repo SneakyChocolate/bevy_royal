@@ -183,8 +183,7 @@ fn receive_messages(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
-    mut enemy_query: Query<&mut Transform, (With<Enemy>, Without<Player>)>, // without are required to exclude the queries
-    mut player_query: Query<&mut Transform, (With<Player>, Without<Enemy>)>, // without are required to exclude the queries
+    mut transform_query: Query<&mut Transform>,
 ) {
     loop {
         match incoming_receiver.0.try_recv() {
@@ -278,8 +277,8 @@ fn receive_messages(
                     ServerMessage::UpdatePositions(position_packages) => {
                         for position_package in position_packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
-                                if let Ok(mut transform) = enemy_query.get_mut(*entity) {
-                                     transform.translation = position_package.position.clone().into();
+                                if let Ok(mut transform) = transform_query.get_mut(*entity) {
+                                    transform.translation = position_package.position.clone().into();
                                 }
                             }
                         }
