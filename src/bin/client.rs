@@ -224,7 +224,7 @@ fn receive_messages(
                         if !entity_map.0.contains_key(&net_id) {
 
                             commands.insert_resource(AmbientLight {
-                                brightness: 50.,
+                                brightness: 10.,
                                 ..Default::default()
                             });
 
@@ -261,8 +261,8 @@ fn receive_messages(
                                         Transform::from_xyz(0.0, 0., 100.0),
                                         PointLight {
                                             shadows_enabled: true,
-                                            intensity: 10_000_000_00.,
-                                            range: 2000.0,
+                                            intensity: 100000000.,
+                                            range: 500.0,
                                             shadow_depth_bias: 10.0,
                                             ..default()
                                         },
@@ -292,4 +292,3 @@ fn receive_messages(
         }
     }
 }
-
