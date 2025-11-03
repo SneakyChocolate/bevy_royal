@@ -231,7 +231,7 @@ fn receive_messages(
                             commands.spawn((
                                 Mesh3d(meshes.add(Plane3d::default().mesh().size(6000.0, 6000.0).subdivisions(1000))),
                                 MeshMaterial3d(standard_materials.add(Color::srgb(1., 1., 1.))),
-                                Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)).with_translation(Vec3::new(0., 0., -20.)),
+                                Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)).with_translation(Vec3::new(0., 0., 0.)),
                             ));
                             
 

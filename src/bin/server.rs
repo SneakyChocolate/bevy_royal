@@ -2,8 +2,6 @@ use std::net::{SocketAddr, UdpSocket};
 use std::collections::HashMap;
 use bevy_royal::*;
 
-const ENEMY_RADIUS: f32 = 20.;
-
 pub struct ServerSocket {
     pub socket: UdpSocket,
     pub buf: [u8; 1000],
@@ -313,7 +311,7 @@ fn spawn_enemies(
         ));
     }
 
-    for _ in 0..500 {
+    for _ in 0..300 {
         let velocity = LinearVelocity(random_velocity());
         let position = random_position(2000.);
         let material = MeshMaterial2d(materials.add(Color::srgb(
@@ -322,19 +320,21 @@ fn spawn_enemies(
             rng.random_range(0.0..4.0),
         )));
 
+        let enemy_radius = rng.random_range(20.0..100.0);
+
         // spawn enemy
         let id = commands.spawn((
-            Transform::from_translation(position.extend(0.)),
-            Mesh2d(meshes.add(Circle::new(ENEMY_RADIUS))),
+            Transform::from_translation(position.extend(enemy_radius)),
+            Mesh2d(meshes.add(Circle::new(enemy_radius))),
             material,
             RigidBody::Dynamic,
-            Collider::circle(ENEMY_RADIUS),
+            Collider::circle(enemy_radius),
             velocity,
             CollisionLayers::new([Layer::Ball], [Layer::Boundary]),
             Restitution::new(1.0), // Perfect bounce (1.0 = 100% energy retained)
             Friction::ZERO.with_combine_rule(CoefficientCombine::Min), // Remove friction
             Enemy,
-            Radius(ENEMY_RADIUS),
+            Radius(enemy_radius),
         )).id();
 
         net_id_map.0.insert(id, id_counter.0);
