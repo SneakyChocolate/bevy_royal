@@ -1,6 +1,6 @@
 use std::net::{SocketAddr, UdpSocket};
 use std::collections::HashMap;
-use dodgescrape2::*;
+use bevy_royal::*;
 
 const ENEMY_RADIUS: f32 = 20.;
 
@@ -169,7 +169,7 @@ fn broadcast_player_spawns(
             let net_id = net_id_map.0.get(&entity).unwrap();
             entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
                 (*transform).into(),
-                NetComponent::CircleMesh(radius.0),
+                NetComponent::Sphere(radius.0),
                 (*transform).into(),
                 (*velocity).into(),
                 (materials.get(meshmaterial2d).unwrap().clone()).into(),
@@ -202,7 +202,7 @@ fn broadcast_enemy_spawns(
             let net_id = net_id_map.0.get(&entity).unwrap();
             entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
                 (*transform).into(),
-                NetComponent::CircleMesh(radius.0),
+                NetComponent::Sphere(radius.0),
                 (*transform).into(),
                 (*velocity).into(),
                 (materials.get(meshmaterial2d).unwrap().clone()).into(),

@@ -182,7 +182,7 @@ pub enum NetComponent {
 		rotation: Rotation2d,
 		scale: MyVec3,
 	},
-	CircleMesh(f32),
+	Sphere(f32),
 	ColorMaterial {
 		r: f32,
 		g: f32,
@@ -245,7 +245,7 @@ impl NetComponent {
     	&self,
     	entity: &mut EntityCommands,
 	    meshes: &mut ResMut<Assets<Mesh>>,
-	    materials: &mut ResMut<Assets<ColorMaterial>>,
+	    materials: &mut ResMut<Assets<StandardMaterial>>,
     ) {
         match self {
             NetComponent::Transform { translation, rotation, scale } => {
@@ -258,11 +258,11 @@ impl NetComponent {
             NetComponent::LinearVelocity(v) => {
                 entity.insert(LinearVelocity((*v).into()));
             },
-            NetComponent::CircleMesh(radius) => {
-            	entity.insert(Mesh2d(meshes.add(Circle::new(*radius))));
+            NetComponent::Sphere(radius) => {
+            	entity.insert(Mesh3d(meshes.add(Sphere::new(*radius))));
             },
             NetComponent::ColorMaterial { r, g, b } => {
-                entity.insert(MeshMaterial2d(materials.add(Color::srgb(*r, *g, *b))));
+                entity.insert(MeshMaterial3d(materials.add(Color::srgb(*r, *g, *b))));
             },
             NetComponent::Alive(v) => {
                 entity.insert(Alive(*v));

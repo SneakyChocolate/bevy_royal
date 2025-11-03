@@ -1,7 +1,6 @@
 use std::net::{SocketAddr, UdpSocket};
 use std::collections::{HashMap, HashSet};
-
-use dodgescrape2::*;
+use bevy_royal::*;
 
 pub struct ClientSocket {
     pub socket: UdpSocket,
@@ -180,7 +179,8 @@ fn receive_messages(
     incoming_receiver: Res<IncomingReceiver>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
+    mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
     mut enemy_query: Query<&mut Transform, (With<Enemy>, Without<Player>)>, // without are required to exclude the queries
@@ -199,7 +199,7 @@ fn receive_messages(
                                 let mut entity = commands.spawn_empty();
 
                                 for component in components {
-                                    component.apply_to(&mut entity, &mut meshes, &mut materials);
+                                    component.apply_to(&mut entity, &mut meshes, &mut standard_materials);
                                 }
 
                                 let id = entity.id();
@@ -213,7 +213,7 @@ fn receive_messages(
                             if let Some(entity) = entity_map.0.get(&net_id) {
                                 if let Ok(mut entity_commands) = commands.get_entity(*entity) {
                                     for component in components {
-                                        component.apply_to(&mut entity_commands, &mut meshes, &mut materials);
+                                        component.apply_to(&mut entity_commands, &mut meshes, &mut standard_materials);
                                     }
                                 }
                             }
@@ -223,24 +223,52 @@ fn receive_messages(
                         println!("player was created successfully with id {:?}", net_id);
 
                         if !entity_map.0.contains_key(&net_id) {
-                            let id = commands.spawn((
-                                Controlled,
-                                Camera2d,
-                                Camera {
-                                    clear_color: ClearColorConfig::Custom(Color::BLACK),
-                                    ..default()
-                                },
-                                Tonemapping::TonyMcMapface,
-                                Bloom::default(),
-                                DebandDither::Enabled,
 
-                                Mesh2d(meshes.add(Circle::new(20.))),
+                            commands.insert_resource(AmbientLight {
+                                brightness: 50.,
+                                ..Default::default()
+                            });
+
+                            commands.spawn((
+                                Mesh3d(meshes.add(Plane3d::default().mesh().size(6000.0, 6000.0).subdivisions(1000))),
+                                MeshMaterial3d(standard_materials.add(Color::srgb(1., 1., 1.))),
+                                Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)).with_translation(Vec3::new(0., 0., -20.)),
+                            ));
+                            
+
+                            let id = commands.spawn((
+                                Mesh3d(meshes.add(Sphere::new(20.))),
                                 Transform::default(),
                                 Velocity(Vec2::new(0., 0.)),
-                                MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
+                                MeshMaterial3d(standard_materials.add(Color::srgb(0., 1., 0.))),
                                 Player,
                                 Alive(true),
                                 Radius(20.),
+                                Controlled,
+                                
+                                children![
+                                    (
+                                        Camera3d::default(),
+                                        Camera {
+                                            clear_color: ClearColorConfig::Custom(Color::BLACK),
+                                            ..default()
+                                        },
+                                        Tonemapping::TonyMcMapface,
+                                        Bloom::default(),
+                                        DebandDither::Enabled,
+                                        Transform::from_xyz(0.0, -200., 500.0).looking_at(Vec3::new(0., 0., 0.), Vec3::Y),
+                                    ),
+                                    (
+                                        Transform::from_xyz(0.0, 0., 100.0),
+                                        PointLight {
+                                            shadows_enabled: true,
+                                            intensity: 10_000_000_00.,
+                                            range: 2000.0,
+                                            shadow_depth_bias: 0.2,
+                                            ..default()
+                                        },
+                                    ),
+                                ],
                             )).id();
 
                             entity_map.0.insert(net_id, id);
@@ -260,7 +288,7 @@ fn receive_messages(
 
                             // create enemy if doesn't exist on local data
                             if !entity_map.0.contains_key(&enemy_package.net_id) {
-                                let material = MeshMaterial2d(materials.add(Color::srgb(
+                                let material = MeshMaterial2d(color_materials.add(Color::srgb(
                                     rng.random_range(0.0..4.0),
                                     rng.random_range(0.0..4.0),
                                     rng.random_range(0.0..4.0),
@@ -299,7 +327,7 @@ fn receive_messages(
                                     Mesh2d(meshes.add(Circle::new(20.))),
                                     Transform::from_translation(player.position.into()),
                                     Velocity(Vec2::new(0., 0.)),
-                                    MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
+                                    MeshMaterial2d(color_materials.add(Color::srgb(0., 1., 0.))),
                                     Player,
                                     Alive(true),
                                     Radius(20.),
