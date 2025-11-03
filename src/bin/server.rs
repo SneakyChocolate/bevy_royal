@@ -75,8 +75,7 @@ fn main() {
             // broadcast_transform_updates,
             broadcast_enemy_spawns,
             broadcast_player_spawns,
-            broadcast_enemies,
-            broadcast_players,
+            broadcast_positions,
         ))
         .run();
 }
@@ -161,11 +160,13 @@ fn broadcast_player_spawns(
     mut net_id_map: ResMut<NetIDMap>,
     mut entity_map: ResMut<EntityMap>,
     client_addresses: Query<(Entity, &UpdateAddress), With<PendingSpawn>>,
-    player_query: Query<(Entity, &Transform, &Mesh2d, &LinearVelocity, &MeshMaterial2d<ColorMaterial>, &Player, &Alive, &Radius)>,
+    player_query: Query<(Entity, &Transform, &Mesh2d, &Velocity, &MeshMaterial2d<ColorMaterial>, &Player, &Alive, &Radius)>,
 ) {
     for (id, addr) in client_addresses.iter() {
+        // println!("client spawn");
         let mut entity_packages = Vec::<EntityPackage>::new();
         for (entity, transform, mesh2d, velocity, meshmaterial2d, player, alive, radius) in &player_query {
+            println!("player broadcast");
             let net_id = net_id_map.0.get(&entity).unwrap();
             entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
                 (*transform).into(),
@@ -180,8 +181,9 @@ fn broadcast_player_spawns(
         }
         for chonky in entity_packages.chunks(2) {
             outgoing_sender.0.send((addr.addr, ServerMessage::SpawnEntities(chonky.to_vec())));
-            commands.entity(id).remove::<PendingSpawn>();
         }
+        println!("sending player spawn");
+        commands.entity(id).remove::<PendingSpawn>();
     }
 }
 
@@ -212,53 +214,13 @@ fn broadcast_enemy_spawns(
         }
         for chonky in entity_packages.chunks(2) {
             outgoing_sender.0.send((addr.addr, ServerMessage::SpawnEntities(chonky.to_vec())));
-            commands.entity(id).remove::<PendingSpawn>();
+            // commands.entity(id).remove::<PendingSpawn>();
         }
     }
 }
 
-const ENEMIES_PER_PACKAGE: usize = (1000. / std::mem::size_of::<EnemyPackage>() as f32).floor() as usize;
-const PLAYERS_PER_PACKAGE: usize = (1000. / std::mem::size_of::<PlayerPackage>() as f32).floor() as usize;
-
-fn broadcast_enemies(
-    outgoing_sender: Res<OutgoingSender>,
-    client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    enemy_query: Query<(Entity, &Transform, &Radius), With<Enemy>>,
-    mut net_id_map: ResMut<NetIDMap>,
-) {
-    const BROADCAST_RADIUS: f32 = 500.0;
-    const RADIUS_SQUARED: f32 = BROADCAST_RADIUS * BROADCAST_RADIUS; // Avoid sqrt in distance checks
-
-    // Process each client separately
-    for (id, addr, player_transform) in client_addresses.iter() {
-        let player_pos = player_transform.translation;
-        
-        // Collect enemies within radius for this specific player
-        let mut nearby_enemies: Vec<EnemyPackage> = enemy_query
-            .iter()
-            .filter_map(|(enemy_entity, enemy_transform, radius)| {
-                let distance_squared = player_pos.distance_squared(enemy_transform.translation);
-                
-                if distance_squared <= RADIUS_SQUARED {
-                    let net_id = net_id_map.0.get(&enemy_entity)?;
-                    Some(EnemyPackage {
-                        net_id: *net_id,
-                        position: enemy_transform.translation.into(),
-                        radius: radius.0,
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        // Split into chunks and send
-        for enemy_chunk in nearby_enemies.chunks(ENEMIES_PER_PACKAGE) {
-            let message = ServerMessage::UpdateEnemies(enemy_chunk.to_vec());
-            outgoing_sender.0.send((addr.addr, message));
-        }
-    }
-}
+const ENEMY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<EnemyPackage>() as f32).floor() as usize;
+const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
 
 // TODO FIXME LAGGING
 fn broadcast_transform_updates(
@@ -301,38 +263,41 @@ fn broadcast_transform_updates(
     }
 }
 
-fn broadcast_players(
+fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
-    client_addresses: Query<(Entity, &UpdateAddress)>,
-    player_query: Query<(Entity, &Transform), With<Player>>,
+    client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
+    query: Query<(Entity, &Transform)>,
     mut net_id_map: ResMut<NetIDMap>,
 ) {
-    let player_package_vec_count = (player_query.iter().len() as f32 / PLAYERS_PER_PACKAGE as f32).ceil() as usize;
-    let mut player_package_vec = Vec::<Vec<PlayerPackage>>::new();
-    let mut player_packages: Vec<PlayerPackage> = Vec::with_capacity(PLAYERS_PER_PACKAGE);
-    let mut counter = 0;
-    for (player_entity, player_transform) in player_query {
-        let net_id = net_id_map.0.get(&player_entity).unwrap();
-        player_packages.push(PlayerPackage {
-            net_id: *net_id,
-            position: player_transform.translation.into(),
-        });
-        counter += 1;
-        if counter >= PLAYERS_PER_PACKAGE {
-            counter = 0;
-            player_package_vec.push(player_packages);
-            player_packages = Vec::with_capacity(PLAYERS_PER_PACKAGE);
-        }
-    }
-    if player_packages.len() > 0 {
-        player_package_vec.push(player_packages);
-    }
+    const BROADCAST_RADIUS: f32 = 500.0;
+    const RADIUS_SQUARED: f32 = BROADCAST_RADIUS * BROADCAST_RADIUS;
 
-    for player_packages in player_package_vec {
-        let message = ServerMessage::UpdatePlayers(player_packages);
+    // Process each client separately
+    for (id, addr, player_transform) in client_addresses.iter() {
+        let player_pos = player_transform.translation;
+        
+        // Collect enemies within radius for this specific player
+        let mut nearby_entities: Vec<PositionPackage> = query
+            .iter()
+            .filter_map(|(entity, entity_transform)| {
+                let distance_squared = player_pos.distance_squared(entity_transform.translation);
+                
+                if distance_squared <= RADIUS_SQUARED {
+                    let net_id = net_id_map.0.get(&entity)?;
+                    Some(PositionPackage {
+                        net_id: *net_id,
+                        position: entity_transform.translation.into(),
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
 
-        for (id, addr) in client_addresses {
-            outgoing_sender.0.send((addr.addr, message.clone()));
+        // Split into chunks and send
+        for enemy_chunk in nearby_entities.chunks(POSITION_PACKAGES_PER_MESSAGE) {
+            let message = ServerMessage::UpdatePositions(enemy_chunk.to_vec());
+            outgoing_sender.0.send((addr.addr, message));
         }
     }
 }

@@ -110,7 +110,7 @@ pub struct EnemyPackage {
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
-pub struct PlayerPackage {
+pub struct PositionPackage {
 	pub net_id: NetIDType,
 	pub position: MyVec3,
 }
@@ -126,8 +126,7 @@ pub enum ServerMessage {
 	Ok(NetIDType), // the id of the player so that it knows which id it is
 	SpawnEntities(Vec<EntityPackage>),
 	UpdateEntities(Vec<EntityPackage>),
-	UpdateEnemies(Vec<EnemyPackage>),
-	UpdatePlayers(Vec<PlayerPackage>),
+	UpdatePositions(Vec<PositionPackage>),
 }
 
 impl ServerMessage {
@@ -197,6 +196,11 @@ pub enum NetComponent {
 impl Into<NetComponent> for LinearVelocity {
     fn into(self) -> NetComponent {
     	NetComponent::LinearVelocity((*self).into())
+    }
+}
+impl Into<NetComponent> for Velocity {
+    fn into(self) -> NetComponent {
+    	NetComponent::LinearVelocity((self.0).into())
     }
 }
 impl Into<NetComponent> for Transform {

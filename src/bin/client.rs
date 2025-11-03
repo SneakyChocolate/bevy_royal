@@ -275,66 +275,12 @@ fn receive_messages(
                             net_id_map.0.insert(id, net_id);
                         }
                     },
-                    ServerMessage::UpdateEnemies(enemy_packages) => {
-                        let mut rng = rand::rng();
-
-                        for enemy_package in enemy_packages {
-                            // check if enemy exists on local data
-                            if let Some(enemy_entity) = entity_map.0.get(&enemy_package.net_id) {
-                                if let Ok(mut enemy_transform) = enemy_query.get_mut(*enemy_entity) {
-                                     enemy_transform.translation = enemy_package.position.clone().into();
+                    ServerMessage::UpdatePositions(position_packages) => {
+                        for position_package in position_packages {
+                            if let Some(entity) = entity_map.0.get(&position_package.net_id) {
+                                if let Ok(mut transform) = enemy_query.get_mut(*entity) {
+                                     transform.translation = position_package.position.clone().into();
                                 }
-                            }
-
-                            // create enemy if doesn't exist on local data
-                            if !entity_map.0.contains_key(&enemy_package.net_id) {
-                                let material = MeshMaterial2d(color_materials.add(Color::srgb(
-                                    rng.random_range(0.0..4.0),
-                                    rng.random_range(0.0..4.0),
-                                    rng.random_range(0.0..4.0),
-                                )));
-
-                                let id = commands.spawn((
-                                    Mesh2d(meshes.add(Circle::new(enemy_package.radius))),
-                                    material,
-                                    Transform::from_translation(enemy_package.position.into()),
-                                    Velocity(Vec2::new(0., 0.)),
-                                    Enemy,
-                                    Radius(enemy_package.radius),
-                                )).id();
-
-                                entity_map.0.insert(enemy_package.net_id, id);
-                                net_id_map.0.insert(id, enemy_package.net_id);
-                            }
-                        }
-                    },
-                    ServerMessage::UpdatePlayers(players) => {
-                        for player in players {
-                            // check if player exists on local data
-                            if let Some(player_entity) = entity_map.0.get(&player.net_id) {
-                                let player_transform_result = player_query.get_mut(*player_entity);
-                                match player_transform_result {
-                                    Ok(mut player_transform) => {
-                                        player_transform.translation = player.position.clone().into();
-                                    },
-                                    Err(_) => { },
-                                }
-                            }
-
-                            // create player if doesn't exist on local data
-                            if !entity_map.0.contains_key(&player.net_id) {
-                                let id = commands.spawn((
-                                    Mesh2d(meshes.add(Circle::new(20.))),
-                                    Transform::from_translation(player.position.into()),
-                                    Velocity(Vec2::new(0., 0.)),
-                                    MeshMaterial2d(color_materials.add(Color::srgb(0., 1., 0.))),
-                                    Player,
-                                    Alive(true),
-                                    Radius(20.),
-                                )).id();
-
-                                entity_map.0.insert(player.net_id, id);
-                                net_id_map.0.insert(id, player.net_id);
                             }
                         }
                     },

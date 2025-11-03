@@ -1,4 +1,4 @@
-use dodgescrape2::*;
+use bevy_royal::*;
 
 fn main() {
     App::new()
