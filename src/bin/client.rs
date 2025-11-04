@@ -2,6 +2,7 @@ use std::net::{SocketAddr, UdpSocket};
 use std::collections::{HashMap, HashSet};
 use bevy::ecs::entity_disabling::Disabled;
 use bevy_royal::*;
+use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 pub struct ClientSocket {
     pub socket: UdpSocket,
@@ -84,12 +85,15 @@ fn main() {
         .insert_resource(EntityMap::default())
         .insert_resource(NetIDMap::default())
         .add_plugins(DefaultPlugins)
+        .add_plugins(EguiPlugin::default())
+        .add_plugins(WorldInspectorPlugin::new())
         // .add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, setup)
         .add_systems(Update, (
             (receive_messages, disable_system).chain(),
             cursor_position_system,
             player_movement_system,
+            // update_camera_direction,
         ))
         .run();
 }
@@ -191,9 +195,9 @@ fn receive_messages(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
-    mut transform_query: Query<(Entity, &mut Transform)>,
+    mut transform_query: Query<(Entity, &mut Transform, Has<Disabled>, Has<Enemy>)>,
 ) {
-    for (entity, _) in &transform_query {
+    for (entity, _, _, _) in &transform_query {
         // commands.entity(entity).remove::<JustUpdated>();
     }
 
@@ -249,7 +253,8 @@ fn receive_messages(
 
                             let id = commands.spawn((
                                 Mesh3d(meshes.add(Sphere::new(20.))),
-                                Transform::default(),
+                                Transform::default()
+                                ,
                                 Velocity(Vec2::new(0., 0.)),
                                 MeshMaterial3d(standard_materials.add(Color::srgb(0., 1., 0.))),
                                 Player,
@@ -267,7 +272,9 @@ fn receive_messages(
                                         Tonemapping::TonyMcMapface,
                                         Bloom::default(),
                                         DebandDither::Enabled,
-                                        Transform::from_xyz(0.0, -200., 500.0).looking_at(Vec3::new(0., 0., 0.), Vec3::Y),
+                                        Transform::from_xyz(0.0, -200., 500.0)
+                                            .looking_at(Vec3::new(0., 0., 0.), Vec3::Y)
+                                        ,
                                     ),
                                     (
                                         Transform::from_xyz(0.0, 0., 100.0),
@@ -289,10 +296,12 @@ fn receive_messages(
                     ServerMessage::UpdatePositions(position_packages) => {
                         for position_package in position_packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
-                                if let Ok((_, mut transform)) = transform_query.get_mut(*entity) {
+                                if let Ok((_, mut transform, _, has_enemy)) = transform_query.get_mut(*entity) {
                                     transform.translation = position_package.position.clone().into();
-                                    println!("posssssssssssition");
                                     commands.entity(*entity).insert(JustUpdated);
+                                    if has_enemy {
+                                        println!("enemy got just updaed");
+                                    }
                                 }
                             }
                         }
@@ -309,14 +318,35 @@ fn receive_messages(
 
 fn disable_system(
     mut commands: Commands,
-    enemy_query: Query<(Entity, Has<JustUpdated>), With<Enemy>>,
+    enemy_query: Query<(Entity, Has<JustUpdated>, Has<Disabled>), With<Enemy>>,
 ) {
-    for (enemy, just_updated) in enemy_query {
-        if just_updated || true {
+    for (enemy, just_updated, is_disabled) in enemy_query {
+        if just_updated {
             commands.entity(enemy).remove::<Disabled>();
+            if is_disabled {
+            }
         }
         else {
             commands.entity(enemy).insert(Disabled);
+            if !is_disabled {
+            }
         }
+    }
+}
+
+pub fn update_camera_direction(
+    mut player_query: Query<(&Velocity, &mut Transform), (With<Controlled>, With<Player>)>,
+) {
+    for (vel, mut transform) in &mut player_query {
+        let v = vel.0;
+        if v.length_squared() < f32::EPSILON {
+            continue;
+        }
+
+        // angle opposite to velocity
+        let angle = v.y.atan2(v.x) + std::f32::consts::PI;
+
+        // rotate around Z axis
+        transform.rotation = Quat::from_rotation_z(angle);
     }
 }

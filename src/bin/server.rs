@@ -108,7 +108,7 @@ fn receive_messages(
             ClientMessage::Login => {
                 // spawn player
                 let id = commands.spawn((
-                    Transform::from_xyz(200., 0., 1.),
+                    Transform::from_xyz(200., 0., 20.),
                     Player,
                     Alive(true),
                     Radius(20.),
