@@ -108,11 +108,11 @@ fn receive_messages(
             ClientMessage::Login => {
                 // spawn player
                 let id = commands.spawn((
-                    Transform::from_xyz(200., 0., 20.),
+                    Transform::from_xyz(0., 0., 20.),
                     Player,
                     Alive(true),
                     Radius(20.),
-                    Velocity(Vec2::new(-200., 0.)),
+                    Velocity(Vec2::new(0., 0.)),
                     // LinearVelocity(Vec2::new(-200., 0.)),
                     // RigidBody::Dynamic,
                     Mesh2d(meshes.add(Circle::new(20.))),
@@ -217,6 +217,8 @@ fn broadcast_enemy_spawns(
 
 const ENEMY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<EnemyPackage>() as f32).floor() as usize;
 const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
+const BROADCAST_RADIUS: f32 = 500.0;
+const RADIUS_SQUARED: f32 = BROADCAST_RADIUS * BROADCAST_RADIUS;
 
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
@@ -224,8 +226,6 @@ fn broadcast_positions(
     query: Query<(Entity, &Transform)>,
     mut net_id_map: ResMut<NetIDMap>,
 ) {
-    const BROADCAST_RADIUS: f32 = 500.0;
-    const RADIUS_SQUARED: f32 = BROADCAST_RADIUS * BROADCAST_RADIUS;
 
     // Process each client separately
     for (id, addr, player_transform) in client_addresses.iter() {

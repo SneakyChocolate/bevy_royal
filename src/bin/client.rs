@@ -85,8 +85,8 @@ fn main() {
         .insert_resource(EntityMap::default())
         .insert_resource(NetIDMap::default())
         .add_plugins(DefaultPlugins)
-        .add_plugins(EguiPlugin::default())
-        .add_plugins(WorldInspectorPlugin::new())
+        // .add_plugins(EguiPlugin::default())
+        // .add_plugins(WorldInspectorPlugin::new())
         // .add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, setup)
         .add_systems(Update, (
@@ -195,11 +195,8 @@ fn receive_messages(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
-    mut transform_query: Query<(Entity, &mut Transform, Has<Disabled>, Has<Enemy>)>,
+    mut transform_query: Query<(Entity, &mut Transform)>,
 ) {
-    for (entity, _, _, _) in &transform_query {
-        // commands.entity(entity).remove::<JustUpdated>();
-    }
 
     loop {
         match incoming_receiver.0.try_recv() {
@@ -272,7 +269,7 @@ fn receive_messages(
                                         Tonemapping::TonyMcMapface,
                                         Bloom::default(),
                                         DebandDither::Enabled,
-                                        Transform::from_xyz(0.0, -200., 500.0)
+                                        Transform::from_xyz(0.0, -200., 900.0)
                                             .looking_at(Vec3::new(0., 0., 0.), Vec3::Y)
                                         ,
                                     ),
@@ -294,14 +291,14 @@ fn receive_messages(
                         }
                     },
                     ServerMessage::UpdatePositions(position_packages) => {
+                        for (entity, _) in &transform_query {
+                            commands.entity(entity).remove::<JustUpdated>();
+                        }
                         for position_package in position_packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
-                                if let Ok((_, mut transform, _, has_enemy)) = transform_query.get_mut(*entity) {
+                                if let Ok((_, mut transform)) = transform_query.get_mut(*entity) {
                                     transform.translation = position_package.position.clone().into();
                                     commands.entity(*entity).insert(JustUpdated);
-                                    if has_enemy {
-                                        println!("enemy got just updaed");
-                                    }
                                 }
                             }
                         }
@@ -318,20 +315,16 @@ fn receive_messages(
 
 fn disable_system(
     mut commands: Commands,
-    enemy_query: Query<(Entity, Has<JustUpdated>, Has<Disabled>), With<Enemy>>,
+    enemy_query: Query<(Entity, Has<JustUpdated>), With<Enemy>>,
 ) {
-    for (enemy, just_updated, is_disabled) in enemy_query {
-        if just_updated {
-            commands.entity(enemy).remove::<Disabled>();
-            if is_disabled {
-            }
-        }
-        else {
-            commands.entity(enemy).insert(Disabled);
-            if !is_disabled {
-            }
-        }
-    }
+    // for (enemy, just_updated) in enemy_query {
+    //     if just_updated {
+    //         commands.entity(enemy).insert(Visibility::Inherited);
+    //     }
+    //     else {
+    //         commands.entity(enemy).insert(Visibility::Hidden);
+    //     }
+    // }
 }
 
 pub fn update_camera_direction(
