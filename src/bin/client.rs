@@ -1,5 +1,6 @@
 use std::net::{SocketAddr, UdpSocket};
 use std::collections::{HashMap, HashSet};
+use bevy::ecs::entity_disabling::Disabled;
 use bevy_royal::*;
 
 pub struct ClientSocket {
@@ -85,7 +86,11 @@ fn main() {
         .add_plugins(DefaultPlugins)
         // .add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, setup)
-        .add_systems(Update, (receive_messages, cursor_position_system, player_movement_system))
+        .add_systems(Update, (
+            (receive_messages, disable_system).chain(),
+            cursor_position_system,
+            player_movement_system,
+        ))
         .run();
 }
 
@@ -93,6 +98,9 @@ fn main() {
 struct NetIDMap(HashMap<Entity, NetIDType>);
 #[derive(Resource, Default)]
 struct EntityMap(HashMap<NetIDType, Entity>);
+
+#[derive(Component)]
+struct JustUpdated;
 
 #[derive(Component)]
 struct Controlled;
@@ -183,8 +191,12 @@ fn receive_messages(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
-    mut transform_query: Query<&mut Transform>,
+    mut transform_query: Query<(Entity, &mut Transform)>,
 ) {
+    for (entity, _) in &transform_query {
+        // commands.entity(entity).remove::<JustUpdated>();
+    }
+
     loop {
         match incoming_receiver.0.try_recv() {
             Ok(server_message) => {
@@ -277,8 +289,10 @@ fn receive_messages(
                     ServerMessage::UpdatePositions(position_packages) => {
                         for position_package in position_packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
-                                if let Ok(mut transform) = transform_query.get_mut(*entity) {
+                                if let Ok((_, mut transform)) = transform_query.get_mut(*entity) {
                                     transform.translation = position_package.position.clone().into();
+                                    println!("posssssssssssition");
+                                    commands.entity(*entity).insert(JustUpdated);
                                 }
                             }
                         }
@@ -289,6 +303,20 @@ fn receive_messages(
                 crossbeam::channel::TryRecvError::Empty => break,
                 crossbeam::channel::TryRecvError::Disconnected => break,
             },
+        }
+    }
+}
+
+fn disable_system(
+    mut commands: Commands,
+    enemy_query: Query<(Entity, Has<JustUpdated>), With<Enemy>>,
+) {
+    for (enemy, just_updated) in enemy_query {
+        if just_updated || true {
+            commands.entity(enemy).remove::<Disabled>();
+        }
+        else {
+            commands.entity(enemy).insert(Disabled);
         }
     }
 }
