@@ -240,7 +240,7 @@ fn broadcast_positions(
         let mut nearby_entities: Vec<PositionPackage> = query
             .iter_mut()
             .filter_map(|(entity, entity_transform, last_broadcast_option)| {
-                let distance_squared = player_pos.distance_squared(entity_transform.translation);
+                let distance = player_pos.distance(entity_transform.translation);
                 let net_id = net_id_map.0.get(&entity)?;
                 let position_package = Some(PositionPackage {
                     net_id: *net_id,
@@ -249,18 +249,12 @@ fn broadcast_positions(
 
                 if let Some(mut last_broadcast) = last_broadcast_option {
                     last_broadcast.0 += delta_secs;
-                    if distance_squared > RADIUS_SQUARED {
-                        if last_broadcast.0 >= 1. {
-                            last_broadcast.0 = 0.;
-                            position_package
-                        }
-                        else {
-                            None
-                        }
+                    if last_broadcast.0 >= distance / 10000. {
+                        last_broadcast.0 = 0.;
+                        position_package
                     }
                     else {
-                        last_broadcast.0 = delta_secs;
-                        position_package
+                        None
                     }
                 }
                 else {
@@ -331,7 +325,7 @@ fn spawn_enemies(
         ));
     }
 
-    for _ in 0..300 {
+    for _ in 0..2000 {
         let velocity = LinearVelocity(random_velocity());
         let position = random_position(2000.);
         let material = MeshMaterial2d(materials.add(Color::srgb(
