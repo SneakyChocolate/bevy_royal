@@ -3,6 +3,11 @@ use std::collections::{HashMap, HashSet};
 use bevy::ecs::entity_disabling::Disabled;
 use bevy_royal::*;
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
+use bevy::{
+    camera::visibility::RenderLayers, color::palettes::tailwind,
+    input::mouse::AccumulatedMouseMotion, light::NotShadowCaster, prelude::*,
+};
+use std::f32::consts::FRAC_PI_2;
 
 pub struct ClientSocket {
     pub socket: UdpSocket,
@@ -92,8 +97,8 @@ fn main() {
         .add_systems(Update, (
             receive_messages,
             cursor_position_system,
+            rotate_player,
             player_movement_system,
-            // update_camera_direction,
         ))
         .run();
 }
@@ -187,6 +192,59 @@ fn player_movement_system(
     }
 }
 
+#[derive(Debug, Component)]
+struct Player;
+
+#[derive(Debug, Component, Deref, DerefMut)]
+struct CameraSensitivity(Vec2);
+
+impl Default for CameraSensitivity {
+    fn default() -> Self {
+        Self(
+            // These factors are just arbitrary mouse sensitivity values.
+            // It's often nicer to have a faster horizontal sensitivity than vertical.
+            // We use a component for them so that we can make them user-configurable at runtime
+            // for accessibility reasons.
+            // It also allows you to inspect them in an editor if you `Reflect` the component.
+            Vec2::new(0.003, 0.001),
+        )
+    }
+}
+
+fn rotate_player(
+    accumulated_mouse_motion: Res<AccumulatedMouseMotion>,
+    player: Single<(&mut Transform, &CameraSensitivity)/* , With<Player> */>,
+) {
+    let (mut transform, camera_sensitivity) = player.into_inner();
+
+    let delta = accumulated_mouse_motion.delta;
+
+    if delta != Vec2::ZERO {
+        // Note that we are not multiplying by delta_time here.
+        // The reason is that for mouse movement, we already get the full movement that happened since the last frame.
+        // This means that if we multiply by delta_time, we will get a smaller rotation than intended by the user.
+        // This situation is reversed when reading e.g. analog input from a gamepad however, where the same rules
+        // as for keyboard input apply. Such an input should be multiplied by delta_time to get the intended rotation
+        // independent of the framerate.
+        let delta_yaw = -delta.x * camera_sensitivity.x;
+        let delta_pitch = -delta.y * camera_sensitivity.y;
+
+        let (yaw, pitch, roll) = transform.rotation.to_euler(EulerRot::ZXY);
+        let yaw = yaw + delta_yaw;
+
+        // If the pitch was ±¹⁄₂ π, the camera would look straight up or down.
+        // When the user wants to move the camera back to the horizon, which way should the camera face?
+        // The camera has no way of knowing what direction was "forward" before landing in that extreme position,
+        // so the direction picked will for all intents and purposes be arbitrary.
+        // Another issue is that for mathematical reasons, the yaw will effectively be flipped when the pitch is at the extremes.
+        // To not run into these issues, we clamp the pitch to a safe range.
+        const PITCH_LIMIT: f32 = FRAC_PI_2 - 0.01;
+        let pitch = (pitch + delta_pitch).clamp(-PITCH_LIMIT, PITCH_LIMIT);
+
+        transform.rotation = Quat::from_euler(EulerRot::ZXY, yaw, pitch, roll);
+    }
+}
+
 fn receive_messages(
     incoming_receiver: Res<IncomingReceiver>,
     mut commands: Commands,
@@ -266,12 +324,16 @@ fn receive_messages(
                                             clear_color: ClearColorConfig::Custom(Color::BLACK),
                                             ..default()
                                         },
+                                        Projection::from(PerspectiveProjection {
+                                            fov: 90.0_f32.to_radians(),
+                                            ..default()
+                                        }),
+                                        Transform::from_xyz(0.0, 0., 0.0).looking_at(Vec3::new(0., 1., 0.), Vec3::Z),
+                                        CameraSensitivity::default(),
+
                                         Tonemapping::TonyMcMapface,
                                         Bloom::default(),
                                         DebandDither::Enabled,
-                                        Transform::from_xyz(0.0, -200., 2900.0)
-                                            .looking_at(Vec3::new(0., 0., 0.), Vec3::Y)
-                                        ,
                                     ),
                                     (
                                         Transform::from_xyz(0.0, 0., 100.0),
