@@ -11,21 +11,23 @@ use bevy::{
 use std::f32::consts::FRAC_PI_2;
 
 pub struct ClientSocket {
+    pub target: String,
     pub socket: UdpSocket,
     pub buf: [u8; 1000],
 }
 
 impl ClientSocket {
-    pub fn new() -> Self {
+    pub fn new(target: String) -> Self {
         let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
         socket.set_nonblocking(true).unwrap();
         Self {
             socket,
             buf: [0; 1000],
+            target,
         }
     }
     pub fn send(&self, bytes: &[u8]) {
-        self.socket.send_to(bytes, "127.0.0.1:7878").unwrap();
+        self.socket.send_to(bytes, &self.target).unwrap();
     }
 }
 
@@ -35,11 +37,14 @@ pub struct IncomingReceiver(crossbeam::channel::Receiver<ServerMessage>);
 pub struct OutgoingSender(crossbeam::channel::Sender<ClientMessage>);
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let server_address = args.get(1).cloned().unwrap_or("127.0.0.1:7878".to_string());
+
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<ServerMessage>();
     let (outgoing_sender, outgoing_receiver) = crossbeam::channel::unbounded::<ClientMessage>();
 
     let network_thread = std::thread::spawn(move || {
-        let mut client_socket = ClientSocket::new();
+        let mut client_socket = ClientSocket::new(server_address);
         let mut delay_pool: Vec<(f32, ServerMessage)> = Vec::with_capacity(1000);
         let mut past = std::time::Instant::now();
 
@@ -56,7 +61,7 @@ fn main() {
             }
 
             // get from socket
-            let ClientSocket { socket, buf } = &mut client_socket;
+            let ClientSocket { socket, buf, target: _ } = &mut client_socket;
 
             while let Ok((len, addr)) = socket.recv_from(buf) {
                 if let Some(server_message) = ServerMessage::decode(buf) {
