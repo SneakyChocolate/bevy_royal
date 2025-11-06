@@ -166,24 +166,38 @@ fn cursor_position_system(
 }
 
 fn player_movement_system(
-    cursor: Res<CursorPos>,
+    keyboard: Res<Input<KeyCode>>,
     player_query: Query<(Entity, &mut Velocity, &Alive), (With<Player>, With<Controlled>)>,
+    camera_query: Query<&Transform, With<Camera>>,
     outgoing_sender: Res<OutgoingSender>,
-    mut net_id_map: Res<NetIDMap>,
+    net_id_map: Res<NetIDMap>,
 ) {
-    for (player_entity, mut velocity, alive) in player_query {
-        if alive.0 || true {
-            let speed = 300.0; // units per second
-            let length = cursor.0.length();
-            let threshold = 200.;
-            if length == 0. {
-                continue;
-            }
-            let percentage = length / threshold;
+    let camera_transform = camera_query.single();
+    let speed = 300.0;
 
-            velocity.0 = cursor.0.normalize() * percentage * speed;
-        }
-        else {
+    // forward in 3D
+    let forward = camera_transform.forward();
+    // ignore z → convert to Vec2
+    let forward_2d = Vec2::new(forward.x, forward.y).normalize_or_zero();
+
+    // perpendicular right vector
+    let right_2d = Vec2::new(-forward_2d.y, forward_2d.x);
+
+    for (player_entity, mut velocity, alive) in player_query.iter_mut() {
+        if alive.0 {
+            let mut dir = Vec2::ZERO;
+
+            if keyboard.pressed(KeyCode::W) { dir += forward_2d; }
+            if keyboard.pressed(KeyCode::S) { dir -= forward_2d; }
+            if keyboard.pressed(KeyCode::A) { dir -= right_2d; }
+            if keyboard.pressed(KeyCode::D) { dir += right_2d; }
+
+            if dir.length_squared() > 0.0 {
+                dir = dir.normalize();
+            }
+
+            velocity.0 = dir * speed;
+        } else {
             velocity.0 = Vec2::ZERO;
         }
 
