@@ -1,6 +1,7 @@
 use std::net::{SocketAddr, UdpSocket};
 use std::collections::{HashMap, HashSet};
 use bevy::ecs::entity_disabling::Disabled;
+use bevy::window::{CursorGrabMode, CursorOptions};
 use bevy_royal::*;
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 use bevy::{
@@ -93,7 +94,7 @@ fn main() {
         // .add_plugins(EguiPlugin::default())
         // .add_plugins(WorldInspectorPlugin::new())
         // .add_plugins(PhysicsPlugins::default())
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, cursor_lock))
         .add_systems(Update, (
             receive_messages,
             cursor_position_system,
@@ -174,37 +175,22 @@ fn player_movement_system(
     let speed = 300.0;
 
     for (player_entity, mut velocity, alive, camera_transform) in player_query.iter_mut() {
-        // --- FIX IS HERE ---
-        // 1. Extract the yaw (horizontal rotation) from the transform.
         let (yaw, _pitch, _roll) = camera_transform.rotation.to_euler(EulerRot::ZXY);
 
-        // 2. Create a rotation Quat that only contains the yaw.
-        let yaw_rotation = Quat::from_axis_angle(Vec3::Z, yaw); // Assuming Z is the up-axis for yaw
+        let yaw_rotation = Quat::from_axis_angle(Vec3::Z, yaw);
 
-        // 3. Get the forward vector based ONLY on the yaw.
-        let forward = yaw_rotation * Vec3::Y; // Assuming Y is the default forward direction in Bevy's 2D/3D space before rotation.
-        // If your game is on the XY plane and Z is up, Vec3::Y is often "forward" by default. 
-        // If you're on the XZ plane and Y is up, this might need to be Vec3::Z or Vec3::X depending on your setup.
-        // Based on your `Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)).with_translation(Vec3::new(0., 0., 0.))`
-        // for the ground plane, it looks like you are working in an X-Y plane setup with Z up. 
-        // Let's stick with the rotation for the player movement.
-        
-        // Use the transformed X/Y components for the 2D movement
+        let forward = yaw_rotation * Vec3::Y;
         let forward_2d = Vec2::new(forward.x, forward.y).normalize_or_zero();
-        // --- END FIX ---
         
-        let right_2d = Vec2::new(-forward_2d.y, forward_2d.x); // Correct right vector (90 degrees clockwise)
+        let right_2d = Vec2::new(-forward_2d.y, forward_2d.x);
         
         if alive.0 {
             let mut dir = Vec2::ZERO;
 
             if keyboard.pressed(KeyCode::KeyW) { dir += forward_2d; }
             if keyboard.pressed(KeyCode::KeyS) { dir -= forward_2d; }
-            // Note: A/D movement seems reversed based on typical WASD controls:
-            // W=Forward, S=Backward, A=Left, D=Right.
-            // A should be left (subtract right_2d) and D should be right (add right_2d).
-            if keyboard.pressed(KeyCode::KeyA) { dir += right_2d; } // Should move left
-            if keyboard.pressed(KeyCode::KeyD) { dir -= right_2d; } // Should move right
+            if keyboard.pressed(KeyCode::KeyA) { dir += right_2d; }
+            if keyboard.pressed(KeyCode::KeyD) { dir -= right_2d; }
 
             if dir.length_squared() > 0.0 {
                 dir = dir.normalize();
@@ -216,7 +202,6 @@ fn player_movement_system(
         }
 
         let net_id = net_id_map.0.get(&player_entity).unwrap();
-        // Assuming your ClientMessage::SetVelocity takes a 2D velocity (or similar)
         outgoing_sender.0.send(ClientMessage::SetVelocity(*net_id, velocity.0.into()));
     }
 }
@@ -307,12 +292,12 @@ fn receive_messages(
                         if !entity_map.0.contains_key(&net_id) {
 
                             commands.insert_resource(AmbientLight {
-                                brightness: 10.,
+                                brightness: 1.,
                                 ..Default::default()
                             });
 
                             commands.spawn((
-                                Mesh3d(meshes.add(Plane3d::default().mesh().size(6000.0, 6000.0).subdivisions(1000))),
+                                Mesh3d(meshes.add(Plane3d::default().mesh().size(20000.0, 20000.0).subdivisions(10))),
                                 MeshMaterial3d(standard_materials.add(Color::srgb(1., 1., 1.))),
                                 Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)).with_translation(Vec3::new(0., 0., 0.)),
                             ));
@@ -351,7 +336,7 @@ fn receive_messages(
                                         PointLight {
                                             shadows_enabled: true,
                                             intensity: 100000000.,
-                                            range: 500.0,
+                                            range: 1500.0,
                                             shadow_depth_bias: 10.0,
                                             ..default()
                                         },
@@ -386,3 +371,10 @@ fn receive_messages(
     }
 }
 
+
+fn cursor_lock(
+    mut cursor_options: Single<&mut CursorOptions, With<PrimaryWindow>>,
+) {
+    cursor_options.grab_mode = CursorGrabMode::Locked;
+    cursor_options.visible = false;
+}

@@ -105,6 +105,7 @@ fn receive_messages(
     mut net_id_map: ResMut<NetIDMap>,
     mut entity_map: ResMut<EntityMap>,
     mut player_query: Query<&mut Velocity, With<Player>>,
+    client_addresses: Query<Entity, With<UpdateAddress>>,
 ) {
     while let Ok((addr, client_message)) = incoming_receiver.0.try_recv() {
         match client_message {
@@ -129,6 +130,11 @@ fn receive_messages(
                 outgoing_sender.0.send((addr, ServerMessage::Ok(id_counter.0)));
 
                 id_counter.0 += 1;
+
+                // give all clients pending spawn
+                for client in client_addresses {
+                    commands.entity(client).insert(PendingSpawn);
+                }
             },
             ClientMessage::SetVelocity(player_net_id, velocity) => {
                 let player_entity_option = entity_map.0.get(&player_net_id);
@@ -249,7 +255,7 @@ fn broadcast_positions(
 
                 if let Some(mut last_broadcast) = last_broadcast_option {
                     last_broadcast.0 += delta_secs;
-                    if last_broadcast.0 >= distance / 10000. {
+                    if last_broadcast.0 >= distance / 20000. {
                         last_broadcast.0 = 0.;
                         position_package
                     }
@@ -297,7 +303,7 @@ fn spawn_enemies(
 ) {
     let mut rng = rand::rng();
     // + Spawn static boundary colliders
-    let half_boundary = 3000.0;
+    let half_boundary = 10000.0;
     let thickness = 10.0;
     let wall_material = MeshMaterial2d(materials.add(Color::srgb(
         rng.random_range(0.0..4.0),
@@ -327,7 +333,7 @@ fn spawn_enemies(
 
     for _ in 0..2000 {
         let velocity = LinearVelocity(random_velocity());
-        let position = random_position(2000.);
+        let position = random_position(half_boundary);
         let material = MeshMaterial2d(materials.add(Color::srgb(
             rng.random_range(0.0..4.0),
             rng.random_range(0.0..4.0),
