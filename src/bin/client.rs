@@ -90,7 +90,7 @@ fn main() {
         // .add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, setup)
         .add_systems(Update, (
-            (receive_messages, disable_system).chain(),
+            receive_messages,
             cursor_position_system,
             player_movement_system,
             // update_camera_direction,
@@ -269,7 +269,7 @@ fn receive_messages(
                                         Tonemapping::TonyMcMapface,
                                         Bloom::default(),
                                         DebandDither::Enabled,
-                                        Transform::from_xyz(0.0, -200., 900.0)
+                                        Transform::from_xyz(0.0, -200., 2900.0)
                                             .looking_at(Vec3::new(0., 0., 0.), Vec3::Y)
                                         ,
                                     ),
@@ -310,36 +310,5 @@ fn receive_messages(
                 crossbeam::channel::TryRecvError::Disconnected => break,
             },
         }
-    }
-}
-
-fn disable_system(
-    mut commands: Commands,
-    enemy_query: Query<(Entity, Has<JustUpdated>), With<Enemy>>,
-) {
-    // for (enemy, just_updated) in enemy_query {
-    //     if just_updated {
-    //         commands.entity(enemy).insert(Visibility::Inherited);
-    //     }
-    //     else {
-    //         commands.entity(enemy).insert(Visibility::Hidden);
-    //     }
-    // }
-}
-
-pub fn update_camera_direction(
-    mut player_query: Query<(&Velocity, &mut Transform), (With<Controlled>, With<Player>)>,
-) {
-    for (vel, mut transform) in &mut player_query {
-        let v = vel.0;
-        if v.length_squared() < f32::EPSILON {
-            continue;
-        }
-
-        // angle opposite to velocity
-        let angle = v.y.atan2(v.x) + std::f32::consts::PI;
-
-        // rotate around Z axis
-        transform.rotation = Quat::from_rotation_z(angle);
     }
 }

@@ -29,6 +29,9 @@ pub struct IncomingReceiver(crossbeam::channel::Receiver<(SocketAddr, ClientMess
 #[derive(Resource)]
 pub struct OutgoingSender(crossbeam::channel::Sender<(SocketAddr, ServerMessage)>);
 
+#[derive(Component)]
+pub struct LastBroadcast(f32);
+
 fn main() {
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ClientMessage)>();
     let (outgoing_sender, outgoing_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ServerMessage)>();
@@ -223,9 +226,11 @@ const RADIUS_SQUARED: f32 = BROADCAST_RADIUS * BROADCAST_RADIUS;
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    query: Query<(Entity, &Transform)>,
+    mut query: Query<(Entity, &Transform, Option<&mut LastBroadcast>)>,
     mut net_id_map: ResMut<NetIDMap>,
+    time: Res<Time>,
 ) {
+    let delta_secs = time.delta_secs();
 
     // Process each client separately
     for (id, addr, player_transform) in client_addresses.iter() {
@@ -233,18 +238,33 @@ fn broadcast_positions(
         
         // Collect enemies within radius for this specific player
         let mut nearby_entities: Vec<PositionPackage> = query
-            .iter()
-            .filter_map(|(entity, entity_transform)| {
+            .iter_mut()
+            .filter_map(|(entity, entity_transform, last_broadcast_option)| {
                 let distance_squared = player_pos.distance_squared(entity_transform.translation);
-                
-                if distance_squared <= RADIUS_SQUARED {
-                    let net_id = net_id_map.0.get(&entity)?;
-                    Some(PositionPackage {
-                        net_id: *net_id,
-                        position: entity_transform.translation.into(),
-                    })
-                } else {
-                    None
+                let net_id = net_id_map.0.get(&entity)?;
+                let position_package = Some(PositionPackage {
+                    net_id: *net_id,
+                    position: entity_transform.translation.into(),
+                });
+
+                if let Some(mut last_broadcast) = last_broadcast_option {
+                    last_broadcast.0 += delta_secs;
+                    if distance_squared > RADIUS_SQUARED {
+                        if last_broadcast.0 >= 1. {
+                            last_broadcast.0 = 0.;
+                            position_package
+                        }
+                        else {
+                            None
+                        }
+                    }
+                    else {
+                        last_broadcast.0 = delta_secs;
+                        position_package
+                    }
+                }
+                else {
+                    position_package
                 }
             })
             .collect();
@@ -335,6 +355,7 @@ fn spawn_enemies(
             Friction::ZERO.with_combine_rule(CoefficientCombine::Min), // Remove friction
             Enemy,
             Radius(enemy_radius),
+            LastBroadcast(0.),
         )).id();
 
         net_id_map.0.insert(id, id_counter.0);
