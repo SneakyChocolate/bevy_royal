@@ -67,6 +67,31 @@ impl Into<MyVec3> for Vec3 {
 }
 
 #[derive(Encode, Decode, Debug, Clone, Copy)]
+pub struct MyQuat {
+	x: f32,
+	y: f32,
+	z: f32,
+	w: f32,
+}
+
+impl Into<Quat> for MyQuat {
+    fn into(self) -> Quat {
+    	Quat::from_xyzw(self.x, self.y, self.z, self.w)
+    }
+}
+
+impl Into<MyQuat> for Quat {
+    fn into(self) -> MyQuat {
+    	MyQuat {
+	        x: self.x,
+	        y: self.y,
+	        z: self.z,
+	        w: self.w,
+	    }
+    }
+}
+
+#[derive(Encode, Decode, Debug, Clone, Copy)]
 pub struct Rotation2d(pub f32);
 
  impl Into<Quat> for Rotation2d {
@@ -178,7 +203,7 @@ pub enum NetComponent {
 	LinearVelocity(MyVec2),
 	Transform {
 		translation: MyVec3,
-		rotation: Rotation2d,
+		rotation: MyQuat,
 		scale: MyVec3,
 	},
 	Sphere(f32),
@@ -207,7 +232,7 @@ impl Into<NetComponent> for Transform {
     fn into(self) -> NetComponent {
     	NetComponent::Transform {
 	        translation: self.translation.into(),
-	        rotation: Rotation2d(0.), // TODO TEMP
+	        rotation: self.rotation.into(), // TODO TEMP
 	        scale: self.scale.into(),
 	    }
     }
