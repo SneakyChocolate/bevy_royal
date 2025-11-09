@@ -9,6 +9,9 @@ use bevy::{
     input::mouse::AccumulatedMouseMotion, light::NotShadowCaster, prelude::*,
 };
 use std::f32::consts::FRAC_PI_2;
+use std::f32::consts::PI;
+
+const FOG_COLOR: Color = Color::srgb(0.15, 0.20, 0.30);
 
 pub struct ClientSocket {
     pub target: String,
@@ -301,9 +304,18 @@ fn receive_messages(
                                 ..Default::default()
                             });
 
+                            // sun
+                            // commands.spawn((
+                            //     DirectionalLight {
+                            //         illuminance: 320.0,
+                            //         ..default()
+                            //     },
+                            //     Transform::from_xyz(0.0, 2.0, 0.0).with_rotation(Quat::from_rotation_x(-PI / 4.)),
+                            // ));
+
                             commands.spawn((
                                 Mesh3d(meshes.add(Plane3d::default().mesh().size(20000.0, 20000.0).subdivisions(10))),
-                                MeshMaterial3d(standard_materials.add(Color::srgb(1., 1., 1.))),
+                                MeshMaterial3d(standard_materials.add(Color::srgb(0.4, 0.5, 0.1))),
                                 Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)).with_translation(Vec3::new(0., 0., 0.)),
                             ));
                             
@@ -323,9 +335,18 @@ fn receive_messages(
                                     (
                                         Camera3d::default(),
                                         Camera {
-                                            clear_color: ClearColorConfig::Custom(Color::BLACK),
+                                            clear_color: ClearColorConfig::Custom(FOG_COLOR),
                                             ..default()
                                         },
+                                        DistanceFog {
+                                            color: FOG_COLOR,
+                                            falloff: FogFalloff::Linear {
+                                                start: 500.0,
+                                                end: 3000.0,
+                                            },
+                                            ..default()
+                                        },
+
                                         Projection::from(PerspectiveProjection {
                                             fov: 90.0_f32.to_radians(),
                                             ..default()
@@ -337,11 +358,11 @@ fn receive_messages(
                                         DebandDither::Enabled,
                                     ),
                                     (
-                                        Transform::from_xyz(0.0, 0., 100.0),
+                                        Transform::from_xyz(0.0, 0., 300.0),
                                         PointLight {
                                             shadows_enabled: true,
-                                            intensity: 100000000.,
-                                            range: 1500.0,
+                                            intensity: 1000000000.,
+                                            range: 3000.0,
                                             shadow_depth_bias: 10.0,
                                             ..default()
                                         },
