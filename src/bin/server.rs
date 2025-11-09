@@ -255,7 +255,7 @@ fn broadcast_positions(
 
                 if let Some(mut last_broadcast) = last_broadcast_option {
                     last_broadcast.0 += delta_secs;
-                    if last_broadcast.0 >= distance / 20000. {
+                    if last_broadcast.0 >= distance / 5000. {
                         last_broadcast.0 = 0.;
                         position_package
                     }
