@@ -358,14 +358,21 @@ fn receive_messages(
                                         DebandDither::Enabled,
                                     ),
                                     (
-                                        Transform::from_xyz(0.0, 0., 300.0),
-                                        PointLight {
+                                        Transform::from_xyz(0.0, -50., 50.0).looking_to(Vec3::Y, Vec3::Z),
+                                        SpotLight {
                                             shadows_enabled: true,
                                             intensity: 1000000000.,
                                             range: 3000.0,
                                             shadow_depth_bias: 10.0,
                                             ..default()
                                         },
+                                        // PointLight {
+                                        //     shadows_enabled: true,
+                                        //     intensity: 1000000000.,
+                                        //     range: 3000.0,
+                                        //     shadow_depth_bias: 10.0,
+                                        //     ..default()
+                                        // },
                                     ),
                                 ],
                             )).id();
