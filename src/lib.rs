@@ -28,10 +28,10 @@ pub struct Alive(pub bool);
 #[derive(Component, Clone, Copy)]
 pub struct Enemy;
 
-pub fn random_velocity() -> Vec2 {
+pub fn random_velocity(min: f32, max: f32) -> Vec2 {
     let mut rng = rand::rng();
     let angle = rng.random_range(0.0..std::f32::consts::TAU);
-    let speed = rng.random_range(50.0..200.0);
+    let speed = rng.random_range(min..max);
     Vec2::from_angle(angle) * speed
 }
 

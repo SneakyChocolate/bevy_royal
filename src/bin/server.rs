@@ -111,15 +111,16 @@ fn receive_messages(
         match client_message {
             ClientMessage::Login => {
                 // spawn player
+                let player_radius = 1.5;
                 let id = commands.spawn((
-                    Transform::from_xyz(0., 0., 20.),
+                    Transform::from_xyz(0., 0., player_radius),
                     Player,
                     Alive(true),
-                    Radius(20.),
+                    Radius(player_radius),
                     Velocity(Vec2::new(0., 0.)),
                     // LinearVelocity(Vec2::new(-200., 0.)),
                     // RigidBody::Dynamic,
-                    Mesh2d(meshes.add(Circle::new(20.))),
+                    Mesh2d(meshes.add(Circle::new(player_radius))),
                     MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
                     UpdateAddress {addr},
                     PendingSpawn,
@@ -303,7 +304,7 @@ fn spawn_enemies(
 ) {
     let mut rng = rand::rng();
     // + Spawn static boundary colliders
-    let half_boundary = 10000.0;
+    let half_boundary = 1000.0;
     let thickness = 10.0;
     let wall_material = MeshMaterial2d(materials.add(Color::srgb(
         rng.random_range(0.0..4.0),
@@ -332,7 +333,7 @@ fn spawn_enemies(
     }
 
     for _ in 0..2000 {
-        let velocity = LinearVelocity(random_velocity());
+        let velocity = LinearVelocity(random_velocity(3., 9.));
         let position = random_position(half_boundary);
         let material = MeshMaterial2d(materials.add(Color::srgb(
             rng.random_range(0.0..4.0),
@@ -340,7 +341,7 @@ fn spawn_enemies(
             rng.random_range(0.0..4.0),
         )));
 
-        let enemy_radius = rng.random_range(20.0..100.0);
+        let enemy_radius = rng.random_range(1.0..2.0);
 
         // spawn enemy
         let id = commands.spawn((

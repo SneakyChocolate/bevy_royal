@@ -180,7 +180,7 @@ fn player_movement_system(
     outgoing_sender: Res<OutgoingSender>,
     net_id_map: Res<NetIDMap>,
 ) {
-    let speed = 300.0;
+    let speed = 8.0;
 
     for (player_entity, mut velocity, alive, camera_transform) in player_query.iter_mut() {
         let (yaw, _pitch, _roll) = camera_transform.rotation.to_euler(EulerRot::ZXY);
@@ -319,15 +319,16 @@ fn receive_messages(
                                 Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)).with_translation(Vec3::new(0., 0., 0.)),
                             ));
                             
-
+                            // spawn player
+                            let player_radius = 1.5;
                             let id = commands.spawn((
-                                Mesh3d(meshes.add(Sphere::new(20.))),
+                                Mesh3d(meshes.add(Sphere::new(player_radius))),
                                 Transform::default() ,
                                 Velocity(Vec2::new(0., 0.)),
                                 MeshMaterial3d(standard_materials.add(Color::srgb(0., 1., 0.))),
                                 Player,
                                 Alive(true),
-                                Radius(20.),
+                                Radius(player_radius),
                                 Controlled,
                                 CameraSensitivity::default(),
                                 
@@ -341,8 +342,8 @@ fn receive_messages(
                                         DistanceFog {
                                             color: FOG_COLOR,
                                             falloff: FogFalloff::Linear {
-                                                start: 500.0,
-                                                end: 3000.0,
+                                                start: player_radius * 10.,
+                                                end: player_radius * 100.,
                                             },
                                             ..default()
                                         },
@@ -351,18 +352,18 @@ fn receive_messages(
                                             fov: 90.0_f32.to_radians(),
                                             ..default()
                                         }),
-                                        Transform::from_xyz(0.0, -50., 35.0).looking_at(Vec3::new(0., 100., 35.), Vec3::Z),
+                                        Transform::from_xyz(0.0, - player_radius * 2.5, player_radius * 1.5).looking_to(Vec3::Y, Vec3::Z),
 
                                         Tonemapping::TonyMcMapface,
                                         Bloom::default(),
                                         DebandDither::Enabled,
                                     ),
                                     (
-                                        Transform::from_xyz(0.0, -50., 50.0).looking_to(Vec3::Y, Vec3::Z),
+                                        Transform::from_xyz(0.0, - player_radius * 6.5, player_radius * 5.5).looking_to(Vec3::Y, Vec3::Z),
                                         SpotLight {
                                             shadows_enabled: true,
-                                            intensity: 1000000000.,
-                                            range: 3000.0,
+                                            intensity: player_radius * 10000000.,
+                                            range: player_radius * 100.,
                                             shadow_depth_bias: 10.0,
                                             ..default()
                                         },
