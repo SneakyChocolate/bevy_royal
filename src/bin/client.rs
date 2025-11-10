@@ -101,7 +101,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         // .add_plugins(EguiPlugin::default())
         // .add_plugins(WorldInspectorPlugin::new())
-        // .add_plugins(PhysicsPlugins::default())
+        .add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, (setup, cursor_lock))
         .add_systems(Update, (
             receive_messages,
