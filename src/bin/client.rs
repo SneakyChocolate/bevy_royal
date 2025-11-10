@@ -275,7 +275,7 @@ fn receive_messages(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
-    mut transform_query: Query<(Entity, &mut Transform)>,
+    mut transform_query: Query<(Entity, &mut Transform, Has<Controlled>)>,
     // me: Single<Entity, With<Controlled>>,
 ) {
 
@@ -402,16 +402,16 @@ fn receive_messages(
                         }
                     },
                     ServerMessage::UpdatePositions(position_packages) => {
-                        for (entity, _) in &transform_query {
+                        for (entity, _, _) in &transform_query {
                             commands.entity(entity).remove::<JustUpdated>();
                         }
                         for position_package in position_packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
-                                if let Ok((_, mut transform)) = transform_query.get_mut(*entity) {
+                                if let Ok((_, mut transform, controlled)) = transform_query.get_mut(*entity) {
                                     transform.translation = position_package.position.clone().into();
-                                    // if *me != *entity {
+                                    if !controlled {
                                         transform.rotation = position_package.rotation.clone().into();
-                                    // }
+                                    }
                                     commands.entity(*entity).insert(JustUpdated);
                                 }
                             }
