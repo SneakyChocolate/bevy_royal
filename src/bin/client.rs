@@ -128,6 +128,7 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    asset_server: Res<AssetServer>,
 ) {
     let login_message = ClientMessage::Login;
     outgoing_sender.0.send(login_message);
@@ -161,6 +162,16 @@ fn setup(
             CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
         ));
     }
+
+    commands.spawn((
+        SceneRoot(asset_server.load(
+            GltfAssetLabel::Scene(0).from_asset("fiebigershof.glb"),
+        )),
+        Transform::from_xyz(0., 0., 0.)
+            .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(50.))
+        ,
+    ));
 }
 
 fn cursor_position_system(
