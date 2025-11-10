@@ -138,6 +138,7 @@ pub struct EnemyPackage {
 pub struct PositionPackage {
 	pub net_id: NetIDType,
 	pub position: MyVec3,
+	pub rotation: MyQuat,
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
@@ -173,6 +174,7 @@ impl ServerMessage {
 pub enum ClientMessage {
 	Login,
 	SetVelocity(NetIDType, MyVec2),
+	Rotation(NetIDType, MyQuat),
 }
 
 impl ClientMessage {
@@ -216,6 +218,7 @@ pub enum NetComponent {
 	Player,
 	Enemy,
 	Radius(f32),
+	SpotLight(f32),
 }
 
 impl Into<NetComponent> for LinearVelocity {
@@ -305,6 +308,20 @@ impl NetComponent {
             NetComponent::Radius(v) => {
                 entity.insert(Radius(*v));
             },
+            NetComponent::SpotLight(player_radius) => {
+                entity.with_children(|parent| {
+                    parent.spawn((
+                    	Transform::from_xyz(0.0, - player_radius * 6.5, player_radius * 5.5).looking_to(Vec3::Y, Vec3::Z),
+	                    SpotLight {
+	                        shadows_enabled: true,
+	                        intensity: player_radius * 10000000.,
+	                        range: player_radius * 100.,
+	                        shadow_depth_bias: 10.0,
+	                        ..default()
+	                    },
+	                ));
+                });
+            }
         }
     }
 }

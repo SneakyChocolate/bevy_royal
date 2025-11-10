@@ -105,7 +105,7 @@ fn receive_messages(
     mut id_counter: ResMut<IDCounter>,
     mut net_id_map: ResMut<NetIDMap>,
     mut entity_map: ResMut<EntityMap>,
-    mut player_query: Query<&mut Velocity, With<Player>>,
+    mut player_query: Query<(&mut Velocity, &mut Transform), With<Player>>,
     client_addresses: Query<Entity, With<UpdateAddress>>,
 ) {
     while let Ok((addr, client_message)) = incoming_receiver.0.try_recv() {
@@ -143,7 +143,7 @@ fn receive_messages(
                 let mut player_exists = false;
                 match player_entity_option {
                     Some(player_entity) => {
-                        if let Ok(mut player_velocity) = player_query.get_mut(*player_entity) {
+                        if let Ok((mut player_velocity, _)) = player_query.get_mut(*player_entity) {
                             player_exists = true;
                             player_velocity.0 = Into::<Vec2>::into(velocity).extend(0.);
                         }
@@ -154,6 +154,22 @@ fn receive_messages(
                     entity_map.0.remove(&player_net_id);
                 }
             },
+            ClientMessage::Rotation(player_net_id, rotation) => {
+                let player_entity_option = entity_map.0.get(&player_net_id);
+                let mut player_exists = false;
+                match player_entity_option {
+                    Some(player_entity) => {
+                        if let Ok((_, mut player_transform)) = player_query.get_mut(*player_entity) {
+                            player_exists = true;
+                            player_transform.rotation = rotation.into();
+                        }
+                    },
+                    None => {},
+                }
+                if !player_exists {
+                    entity_map.0.remove(&player_net_id);
+                }
+            }
         }
     }
 }
@@ -184,6 +200,7 @@ fn broadcast_player_spawns(
                 (*player).into(),
                 (*alive).into(),
                 (*radius).into(),
+                NetComponent::SpotLight(radius.0),
             ] });
         }
         for chonky in entity_packages.chunks(2) {
@@ -253,6 +270,7 @@ fn broadcast_positions(
                 let position_package = Some(PositionPackage {
                     net_id: *net_id,
                     position: entity_transform.translation.into(),
+                    rotation: entity_transform.rotation.into(),
                 });
 
                 if let Some(mut last_broadcast) = last_broadcast_option {

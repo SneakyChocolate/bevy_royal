@@ -241,9 +241,11 @@ impl Default for CameraSensitivity {
 
 fn rotate_player(
     accumulated_mouse_motion: Res<AccumulatedMouseMotion>,
-    player: Single<(&mut Transform, &CameraSensitivity), With<Controlled>>,
+    player: Single<(Entity, &mut Transform, &CameraSensitivity), With<Controlled>>,
+    outgoing_sender: Res<OutgoingSender>,
+    net_id_map: Res<NetIDMap>,
 ) {
-    let (mut transform, camera_sensitivity) = player.into_inner();
+    let (player_entity, mut transform, camera_sensitivity) = player.into_inner();
 
     let delta = accumulated_mouse_motion.delta;
 
@@ -258,6 +260,9 @@ fn rotate_player(
         let pitch = (pitch + delta_pitch).clamp(-PITCH_LIMIT, PITCH_LIMIT);
 
         transform.rotation = Quat::from_euler(EulerRot::ZXY, yaw, pitch, roll);
+
+        let net_id = net_id_map.0.get(&player_entity).unwrap();
+        outgoing_sender.0.send(ClientMessage::Rotation(*net_id, transform.rotation.into()));
     }
 }
 
@@ -401,6 +406,7 @@ fn receive_messages(
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
                                 if let Ok((_, mut transform)) = transform_query.get_mut(*entity) {
                                     transform.translation = position_package.position.clone().into();
+                                    transform.rotation = position_package.rotation.clone().into();
                                     commands.entity(*entity).insert(JustUpdated);
                                 }
                             }
