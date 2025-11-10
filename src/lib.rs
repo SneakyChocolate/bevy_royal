@@ -1,4 +1,4 @@
-pub use avian2d::prelude::*;
+pub use avian3d::prelude::*;
 use bincode::{Decode, Encode};
 pub use rand::Rng;
 pub use bevy::window::PrimaryWindow;
@@ -14,7 +14,7 @@ pub type NetIDType = u128;
 pub struct CursorPos(pub Vec2);
 
 #[derive(Component, Clone, Copy)]
-pub struct Velocity(pub Vec2);
+pub struct Velocity(pub Vec3);
 
 #[derive(Component, Clone, Copy)]
 pub struct Radius(pub f32);
@@ -28,11 +28,11 @@ pub struct Alive(pub bool);
 #[derive(Component, Clone, Copy)]
 pub struct Enemy;
 
-pub fn random_velocity(min: f32, max: f32) -> Vec2 {
+pub fn random_velocity(min: f32, max: f32) -> Vec3 {
     let mut rng = rand::rng();
     let angle = rng.random_range(0.0..std::f32::consts::TAU);
     let speed = rng.random_range(min..max);
-    Vec2::from_angle(angle) * speed
+    (Vec2::from_angle(angle) * speed).extend(0.)
 }
 
 pub fn random_position(range: f32) -> Vec2 {
@@ -200,7 +200,7 @@ pub enum Layer {
 
 #[derive(Encode, Decode, Debug, Clone)]
 pub enum NetComponent {
-	LinearVelocity(MyVec2),
+	LinearVelocity(MyVec3),
 	Transform {
 		translation: MyVec3,
 		rotation: MyQuat,

@@ -149,7 +149,7 @@ fn setup(
             wall_material.clone(),
             Transform::from_xyz(pos, 0., 0.),
             RigidBody::Static,
-            Collider::rectangle(thickness, half_boundary * 2.),
+            Collider::cuboid(thickness, half_boundary * 2., 5.),
             CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
         ));
         // horizontal walls
@@ -158,7 +158,7 @@ fn setup(
             wall_material.clone(),
             Transform::from_xyz(0., pos, 0.),
             RigidBody::Static,
-            Collider::rectangle(half_boundary * 2., thickness),
+            Collider::cuboid(half_boundary * 2., thickness, 5.),
             CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
         ));
     }
@@ -215,13 +215,13 @@ fn player_movement_system(
                 dir = dir.normalize();
             }
 
-            velocity.0 = dir * speed;
+            velocity.0 = (dir * speed).extend(0.);
         } else {
-            velocity.0 = Vec2::ZERO;
+            velocity.0 = Vec3::ZERO;
         }
 
         let net_id = net_id_map.0.get(&player_entity).unwrap();
-        outgoing_sender.0.send(ClientMessage::SetVelocity(*net_id, velocity.0.into()));
+        outgoing_sender.0.send(ClientMessage::SetVelocity(*net_id, velocity.0.truncate().into()));
     }
 }
 
@@ -335,7 +335,7 @@ fn receive_messages(
                             let id = commands.spawn((
                                 Mesh3d(meshes.add(Sphere::new(player_radius))),
                                 Transform::default() ,
-                                Velocity(Vec2::new(0., 0.)),
+                                Velocity(Vec3::ZERO),
                                 MeshMaterial3d(standard_materials.add(Color::srgb(0., 1., 0.))),
                                 Player,
                                 Alive(true),

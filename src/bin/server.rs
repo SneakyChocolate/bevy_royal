@@ -61,6 +61,7 @@ fn main() {
     App::new()
         .insert_resource(IncomingReceiver(incoming_receiver))
         .insert_resource(OutgoingSender(outgoing_sender))
+        // .insert_resource(Gravity(Vec3::NEG_Z))
         .insert_resource(Gravity::ZERO)
         .insert_resource(IDCounter(0))
         .insert_resource(EntityMap::default())
@@ -117,7 +118,7 @@ fn receive_messages(
                     Player,
                     Alive(true),
                     Radius(player_radius),
-                    Velocity(Vec2::new(0., 0.)),
+                    Velocity(Vec3::ZERO),
                     // LinearVelocity(Vec2::new(-200., 0.)),
                     // RigidBody::Dynamic,
                     Mesh2d(meshes.add(Circle::new(player_radius))),
@@ -144,7 +145,7 @@ fn receive_messages(
                     Some(player_entity) => {
                         if let Ok(mut player_velocity) = player_query.get_mut(*player_entity) {
                             player_exists = true;
-                            player_velocity.0 = velocity.into();
+                            player_velocity.0 = Into::<Vec2>::into(velocity).extend(0.);
                         }
                     },
                     None => {},
@@ -318,7 +319,7 @@ fn spawn_enemies(
             wall_material.clone(),
             Transform::from_xyz(pos, 0., 0.),
             RigidBody::Static,
-            Collider::rectangle(thickness, half_boundary * 2.),
+            Collider::cuboid(thickness, half_boundary * 2., 5.),
             CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
         ));
         // spawn horizontal walls
@@ -327,7 +328,7 @@ fn spawn_enemies(
             wall_material.clone(),
             Transform::from_xyz(0., pos, 0.),
             RigidBody::Static,
-            Collider::rectangle(half_boundary * 2., thickness),
+            Collider::cuboid(half_boundary * 2., thickness, 5.),
             CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
         ));
     }
@@ -349,7 +350,7 @@ fn spawn_enemies(
             Mesh2d(meshes.add(Circle::new(enemy_radius))),
             material,
             RigidBody::Dynamic,
-            Collider::circle(enemy_radius),
+            Collider::sphere(enemy_radius),
             velocity,
             CollisionLayers::new([Layer::Ball], [Layer::Boundary]),
             Restitution::new(1.0), // Perfect bounce (1.0 = 100% energy retained)
@@ -371,7 +372,7 @@ fn apply_velocity_system(
 ) {
     let d = time.delta_secs();
     for (mut transform, velocity) in query {
-        transform.translation += velocity.0.extend(0.) * d;
+        transform.translation += velocity.0 * d;
     }
 }
 

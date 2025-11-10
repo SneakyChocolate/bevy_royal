@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 avian2d = "0.4.0"
+avian3d = "0.4.1"
 bevy = "0.17.2"
 bevy-inspector-egui = "0.35.0"
 bincode = "2.0.1"
