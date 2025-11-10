@@ -259,10 +259,11 @@ fn rotate_player(
         const PITCH_LIMIT: f32 = FRAC_PI_2 - 0.01;
         let pitch = (pitch + delta_pitch).clamp(-PITCH_LIMIT, PITCH_LIMIT);
 
-        transform.rotation = Quat::from_euler(EulerRot::ZXY, yaw, pitch, roll);
+        let new_rotation = Quat::from_euler(EulerRot::ZXY, yaw, pitch, roll);
+        transform.rotation = new_rotation;
 
         let net_id = net_id_map.0.get(&player_entity).unwrap();
-        outgoing_sender.0.send(ClientMessage::Rotation(*net_id, transform.rotation.into()));
+        outgoing_sender.0.send(ClientMessage::Rotation(*net_id, new_rotation.into()));
     }
 }
 
@@ -275,6 +276,7 @@ fn receive_messages(
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
     mut transform_query: Query<(Entity, &mut Transform)>,
+    // me: Single<Entity, With<Controlled>>,
 ) {
 
     loop {
@@ -310,6 +312,7 @@ fn receive_messages(
                             }
                         }
                     },
+                    // receiv myself
                     ServerMessage::Ok(net_id) => {
                         println!("player was created successfully with id {:?}", net_id);
 
@@ -406,7 +409,9 @@ fn receive_messages(
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
                                 if let Ok((_, mut transform)) = transform_query.get_mut(*entity) {
                                     transform.translation = position_package.position.clone().into();
-                                    transform.rotation = position_package.rotation.clone().into();
+                                    // if *me != *entity {
+                                        transform.rotation = position_package.rotation.clone().into();
+                                    // }
                                     commands.entity(*entity).insert(JustUpdated);
                                 }
                             }
