@@ -36,7 +36,7 @@ fn main() {
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ClientMessage)>();
     let (outgoing_sender, outgoing_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ServerMessage)>();
 
-    let network_thread = std::thread::spawn(move || {
+    let _network_thread = std::thread::spawn(move || {
         let socket = UdpSocket::bind("0.0.0.0:7878").unwrap();
         socket.set_nonblocking(true).unwrap();
         let mut server_socket = ServerSocket::new(socket);
@@ -51,8 +51,8 @@ fn main() {
             let ServerSocket { socket, buf } = &mut server_socket;
 
             while let Ok((len, addr)) = socket.recv_from(buf) {
-                if let Some(client_message) = ClientMessage::decode(buf) {
-                    incoming_sender.send((addr, client_message));
+                if let Some(client_message) = ClientMessage::decode(&buf[..len]) {
+                    incoming_sender.send((addr, client_message)).unwrap();
                 }
             }
         }
@@ -130,7 +130,7 @@ fn receive_messages(
 
                 net_id_map.0.insert(id, id_counter.0);
                 entity_map.0.insert(id_counter.0, id);
-                outgoing_sender.0.send((addr, ServerMessage::Ok(id_counter.0)));
+                outgoing_sender.0.send((addr, ServerMessage::Ok(id_counter.0))).unwrap();
 
                 id_counter.0 += 1;
 
@@ -178,18 +178,15 @@ fn receive_messages(
 fn broadcast_player_spawns(
     outgoing_sender: Res<OutgoingSender>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut id_counter: ResMut<IDCounter>,
-    mut net_id_map: ResMut<NetIDMap>,
-    mut entity_map: ResMut<EntityMap>,
+    materials: ResMut<Assets<ColorMaterial>>,
+    net_id_map: ResMut<NetIDMap>,
     client_addresses: Query<(Entity, &UpdateAddress), With<PendingSpawn>>,
-    player_query: Query<(Entity, &Transform, &Mesh2d, &Velocity, &MeshMaterial2d<ColorMaterial>, &Player, &Alive, &Radius)>,
+    player_query: Query<(Entity, &Transform, &Velocity, &MeshMaterial2d<ColorMaterial>, &Player, &Alive, &Radius)>,
 ) {
     for (id, addr) in client_addresses.iter() {
         // println!("client spawn");
         let mut entity_packages = Vec::<EntityPackage>::new();
-        for (entity, transform, mesh2d, velocity, meshmaterial2d, player, alive, radius) in &player_query {
+        for (entity, transform, velocity, meshmaterial2d, player, alive, radius) in &player_query {
             println!("player broadcast");
             let net_id = net_id_map.0.get(&entity).unwrap();
             entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
@@ -205,7 +202,7 @@ fn broadcast_player_spawns(
             ] });
         }
         for chonky in entity_packages.chunks(2) {
-            outgoing_sender.0.send((addr.addr, ServerMessage::SpawnEntities(chonky.to_vec())));
+            outgoing_sender.0.send((addr.addr, ServerMessage::SpawnEntities(chonky.to_vec()))).unwrap();
         }
         println!("sending player spawn");
         commands.entity(id).remove::<PendingSpawn>();
@@ -214,18 +211,14 @@ fn broadcast_player_spawns(
 
 fn broadcast_enemy_spawns(
     outgoing_sender: Res<OutgoingSender>,
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut id_counter: ResMut<IDCounter>,
-    mut net_id_map: ResMut<NetIDMap>,
-    mut entity_map: ResMut<EntityMap>,
+    materials: ResMut<Assets<ColorMaterial>>,
+    net_id_map: ResMut<NetIDMap>,
     client_addresses: Query<(Entity, &UpdateAddress), With<PendingSpawn>>,
-    enemy_query: Query<(Entity, &Transform, &Mesh2d, &LinearVelocity, &MeshMaterial2d<ColorMaterial>, &Enemy, &Radius)>,
+    enemy_query: Query<(Entity, &Transform, &LinearVelocity, &MeshMaterial2d<ColorMaterial>, &Enemy, &Radius)>,
 ) {
-    for (id, addr) in client_addresses.iter() {
+    for (_, addr) in client_addresses.iter() {
         let mut entity_packages = Vec::<EntityPackage>::new();
-        for (entity, transform, mesh2d, velocity, meshmaterial2d, enemy, radius) in &enemy_query {
+        for (entity, transform, velocity, meshmaterial2d, enemy, radius) in &enemy_query {
             let net_id = net_id_map.0.get(&entity).unwrap();
             entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
                 (*transform).into(),
@@ -238,30 +231,29 @@ fn broadcast_enemy_spawns(
             ] });
         }
         for chonky in entity_packages.chunks(2) {
-            outgoing_sender.0.send((addr.addr, ServerMessage::SpawnEntities(chonky.to_vec())));
+            outgoing_sender.0.send((addr.addr, ServerMessage::SpawnEntities(chonky.to_vec()))).unwrap();
             // commands.entity(id).remove::<PendingSpawn>();
         }
     }
 }
 
-const ENEMY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<EnemyPackage>() as f32).floor() as usize;
 const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
 
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
     mut query: Query<(Entity, &Transform, Option<&mut LastBroadcast>)>,
-    mut net_id_map: ResMut<NetIDMap>,
+    net_id_map: ResMut<NetIDMap>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_secs();
 
     // Process each client separately
-    for (id, addr, player_transform) in client_addresses.iter() {
+    for (_entity, addr, player_transform) in client_addresses.iter() {
         let player_pos = player_transform.translation;
         
         // Collect enemies within radius for this specific player
-        let mut nearby_entities: Vec<PositionPackage> = query
+        let nearby_entities: Vec<PositionPackage> = query
             .iter_mut()
             .filter_map(|(entity, entity_transform, last_broadcast_option)| {
                 let distance = player_pos.distance(entity_transform.translation);
@@ -274,8 +266,8 @@ fn broadcast_positions(
 
                 if let Some(mut last_broadcast) = last_broadcast_option {
                     last_broadcast.0 += delta_secs;
-                    if last_broadcast.0 >= distance / 100. {
-                        last_broadcast.0 = 0.;
+                    if last_broadcast.0 >= distance / 500. {
+                        last_broadcast.0 = -0.1;
                         position_package
                     }
                     else {
@@ -291,7 +283,7 @@ fn broadcast_positions(
         // Split into chunks and send
         for enemy_chunk in nearby_entities.chunks(POSITION_PACKAGES_PER_MESSAGE) {
             let message = ServerMessage::UpdatePositions(enemy_chunk.to_vec());
-            outgoing_sender.0.send((addr.addr, message));
+            outgoing_sender.0.send((addr.addr, message)).unwrap();
         }
     }
 }
@@ -350,7 +342,7 @@ fn spawn_enemies(
         ));
     }
 
-    for _ in 0..20 {
+    for _ in 0..2000 {
         let velocity = LinearVelocity(random_velocity(3., 9.));
         let position = random_position(half_boundary);
         let material = MeshMaterial2d(materials.add(Color::srgb(

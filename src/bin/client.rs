@@ -1,15 +1,12 @@
-use std::net::{SocketAddr, UdpSocket};
-use std::collections::{HashMap, HashSet};
-use bevy::ecs::entity_disabling::Disabled;
+use std::net::UdpSocket;
+use std::collections::HashMap;
 use bevy::window::{CursorGrabMode, CursorOptions};
 use bevy_royal::*;
-use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
+// use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 use bevy::{
-    camera::visibility::RenderLayers, color::palettes::tailwind,
-    input::mouse::AccumulatedMouseMotion, light::NotShadowCaster, prelude::*,
+    input::mouse::AccumulatedMouseMotion,
 };
 use std::f32::consts::FRAC_PI_2;
-use std::f32::consts::PI;
 
 const FOG_COLOR: Color = Color::srgb(0.15, 0.20, 0.30);
 
@@ -46,7 +43,7 @@ fn main() {
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<ServerMessage>();
     let (outgoing_sender, outgoing_receiver) = crossbeam::channel::unbounded::<ClientMessage>();
 
-    let network_thread = std::thread::spawn(move || {
+    let _network_thread = std::thread::spawn(move || {
         let mut client_socket = ClientSocket::new(server_address);
         let mut delay_pool: Vec<(f32, ServerMessage)> = Vec::with_capacity(1000);
         let mut past = std::time::Instant::now();
@@ -66,8 +63,8 @@ fn main() {
             // get from socket
             let ClientSocket { socket, buf, target: _ } = &mut client_socket;
 
-            while let Ok((len, addr)) = socket.recv_from(buf) {
-                if let Some(server_message) = ServerMessage::decode(buf) {
+            while let Ok((len, _addr)) = socket.recv_from(buf) {
+                if let Some(server_message) = ServerMessage::decode(&buf[..len]) {
                     // incoming_sender.send(server_message);
                     delay_pool.push((0.0, server_message));
                 }
@@ -90,7 +87,7 @@ fn main() {
             });
 
             for server_message in removed {
-                incoming_sender.send(server_message);
+                incoming_sender.send(server_message).unwrap();
             }
         }
     });
@@ -131,7 +128,7 @@ fn setup(
     asset_server: Res<AssetServer>,
 ) {
     let login_message = ClientMessage::Login;
-    outgoing_sender.0.send(login_message);
+    outgoing_sender.0.send(login_message).unwrap();
 
     let mut rng = rand::rng();
     // + Spawn static boundary colliders
@@ -221,7 +218,7 @@ fn player_movement_system(
         }
 
         let net_id = net_id_map.0.get(&player_entity).unwrap();
-        outgoing_sender.0.send(ClientMessage::SetVelocity(*net_id, velocity.0.truncate().into()));
+        outgoing_sender.0.send(ClientMessage::SetVelocity(*net_id, velocity.0.truncate().into())).unwrap();
     }
 }
 
@@ -263,7 +260,7 @@ fn rotate_player(
         transform.rotation = new_rotation;
 
         let net_id = net_id_map.0.get(&player_entity).unwrap();
-        outgoing_sender.0.send(ClientMessage::Rotation(*net_id, new_rotation.into()));
+        outgoing_sender.0.send(ClientMessage::Rotation(*net_id, new_rotation.into())).unwrap();
     }
 }
 
@@ -271,7 +268,6 @@ fn receive_messages(
     incoming_receiver: Res<IncomingReceiver>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut color_materials: ResMut<Assets<ColorMaterial>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
@@ -284,7 +280,7 @@ fn receive_messages(
                 match server_message {
                     ServerMessage::SpawnEntities(entity_packages) => {
                         for EntityPackage { net_id, components } in entity_packages {
-                            if let Some(entity) = entity_map.0.get(&net_id) {
+                            if let Some(_) = entity_map.0.get(&net_id) {
                                 // already exists
                             }
                             else {
