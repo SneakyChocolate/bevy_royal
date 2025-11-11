@@ -71,6 +71,9 @@ fn main() {
                     // incoming_sender.send(server_message);
                     delay_pool.push((0.0, server_message));
                 }
+                else {
+                    println!("got something that couldnt be decoded");
+                }
             }
 
             // go through delay pool
@@ -116,9 +119,6 @@ fn main() {
 struct NetIDMap(HashMap<Entity, NetIDType>);
 #[derive(Resource, Default)]
 struct EntityMap(HashMap<NetIDType, Entity>);
-
-#[derive(Component)]
-struct JustUpdated;
 
 #[derive(Component)]
 struct Controlled;
@@ -276,7 +276,6 @@ fn receive_messages(
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
     mut transform_query: Query<(Entity, &mut Transform, Has<Controlled>)>,
-    // me: Single<Entity, With<Controlled>>,
 ) {
 
     loop {
@@ -402,9 +401,6 @@ fn receive_messages(
                         }
                     },
                     ServerMessage::UpdatePositions(position_packages) => {
-                        for (entity, _, _) in &transform_query {
-                            commands.entity(entity).remove::<JustUpdated>();
-                        }
                         for position_package in position_packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
                                 if let Ok((_, mut transform, controlled)) = transform_query.get_mut(*entity) {
@@ -412,7 +408,6 @@ fn receive_messages(
                                     if !controlled {
                                         transform.rotation = position_package.rotation.clone().into();
                                     }
-                                    commands.entity(*entity).insert(JustUpdated);
                                 }
                             }
                         }

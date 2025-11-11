@@ -125,6 +125,7 @@ fn receive_messages(
                     MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
                     UpdateAddress {addr},
                     PendingSpawn,
+                    LastBroadcast(0.),
                 )).id();
 
                 net_id_map.0.insert(id, id_counter.0);
@@ -245,8 +246,6 @@ fn broadcast_enemy_spawns(
 
 const ENEMY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<EnemyPackage>() as f32).floor() as usize;
 const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
-const BROADCAST_RADIUS: f32 = 500.0;
-const RADIUS_SQUARED: f32 = BROADCAST_RADIUS * BROADCAST_RADIUS;
 
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
@@ -275,7 +274,7 @@ fn broadcast_positions(
 
                 if let Some(mut last_broadcast) = last_broadcast_option {
                     last_broadcast.0 += delta_secs;
-                    if last_broadcast.0 >= distance / 5000. {
+                    if last_broadcast.0 >= distance / 100. {
                         last_broadcast.0 = 0.;
                         position_package
                     }
@@ -351,7 +350,7 @@ fn spawn_enemies(
         ));
     }
 
-    for _ in 0..2000 {
+    for _ in 0..20 {
         let velocity = LinearVelocity(random_velocity(3., 9.));
         let position = random_position(half_boundary);
         let material = MeshMaterial2d(materials.add(Color::srgb(
