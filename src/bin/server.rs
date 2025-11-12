@@ -241,6 +241,27 @@ fn broadcast_enemy_spawns(
 const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
 const VELOCITY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<VelocityPackage>() as f32).floor() as usize;
 
+fn update_per_distance<T>(
+    package: T,
+    delta_secs: f32,
+    last_broadcast_option: Option<Mut<LastBroadcast>>,
+    distance: f32,
+) -> Option<T> {
+    if let Some(mut last_broadcast) = last_broadcast_option {
+        last_broadcast.0 += delta_secs;
+        if last_broadcast.0 >= distance / 500. {
+            last_broadcast.0 = -0.1;
+            Some(package)
+        }
+        else {
+            None
+        }
+    }
+    else {
+        Some(package)
+    }
+}
+
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
@@ -260,25 +281,13 @@ fn broadcast_positions(
             .filter_map(|(entity, entity_transform, last_broadcast_option)| {
                 let distance = player_pos.distance(entity_transform.translation);
                 let net_id = net_id_map.0.get(&entity)?;
-                let position_package = Some(PositionPackage {
+                let package = PositionPackage {
                     net_id: *net_id,
                     position: entity_transform.translation.into(),
                     rotation: entity_transform.rotation.into(),
-                });
+                };
 
-                if let Some(mut last_broadcast) = last_broadcast_option {
-                    last_broadcast.0 += delta_secs;
-                    if last_broadcast.0 >= distance / 500. {
-                        last_broadcast.0 = -0.1;
-                        position_package
-                    }
-                    else {
-                        None
-                    }
-                }
-                else {
-                    position_package
-                }
+                update_per_distance(package, delta_secs, last_broadcast_option, distance)
             })
             .collect();
 
@@ -309,24 +318,12 @@ fn broadcast_velocities(
             .filter_map(|(entity, entity_transform, entity_velocity, last_broadcast_option)| {
                 let distance = player_pos.distance(entity_transform.translation);
                 let net_id = net_id_map.0.get(&entity)?;
-                let position_package = Some(VelocityPackage {
+                let package = VelocityPackage {
                     net_id: *net_id,
                     velocity: entity_velocity.0.into(),
-                });
+                };
 
-                if let Some(mut last_broadcast) = last_broadcast_option {
-                    last_broadcast.0 += delta_secs;
-                    if last_broadcast.0 >= distance / 500. {
-                        last_broadcast.0 = -0.1;
-                        position_package
-                    }
-                    else {
-                        None
-                    }
-                }
-                else {
-                    position_package
-                }
+                update_per_distance(package, delta_secs, last_broadcast_option, distance)
             })
             .collect();
 
