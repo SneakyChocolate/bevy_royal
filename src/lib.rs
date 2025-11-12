@@ -135,6 +135,12 @@ pub struct PositionPackage {
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
+pub struct VelocityPackage {
+	pub net_id: NetIDType,
+	pub velocity: MyVec3,
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
 pub struct EntityPackage {
 	pub net_id: NetIDType,
 	pub components: Vec<NetComponent>,
@@ -146,6 +152,7 @@ pub enum ServerMessage {
 	SpawnEntities(Vec<EntityPackage>),
 	UpdateEntities(Vec<EntityPackage>),
 	UpdatePositions(Vec<PositionPackage>),
+	UpdateVelocities(Vec<VelocityPackage>),
 }
 
 impl ServerMessage {
@@ -282,6 +289,7 @@ impl NetComponent {
             },
             NetComponent::LinearVelocity(v) => {
                 entity.insert(LinearVelocity((*v).into()));
+                entity.insert(RigidBody::Dynamic);
             },
             NetComponent::Sphere(radius) => {
             	entity.insert(Mesh3d(meshes.add(Sphere::new(*radius))));

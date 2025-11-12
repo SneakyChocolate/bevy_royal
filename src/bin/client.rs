@@ -98,6 +98,7 @@ fn main() {
         .insert_resource(CursorPos(Vec2::ZERO))
         .insert_resource(EntityMap::default())
         .insert_resource(NetIDMap::default())
+        .insert_resource(Gravity::ZERO)
         .add_plugins(DefaultPlugins)
         // .add_plugins(EguiPlugin::default())
         // .add_plugins(WorldInspectorPlugin::new())
@@ -188,7 +189,7 @@ fn player_movement_system(
     outgoing_sender: Res<OutgoingSender>,
     net_id_map: Res<NetIDMap>,
 ) {
-    let speed = 8.0;
+    let speed = 80.0;
 
     for (player_entity, mut velocity, alive, camera_transform) in player_query.iter_mut() {
         let (yaw, _pitch, _roll) = camera_transform.rotation.to_euler(EulerRot::ZXY);
@@ -272,6 +273,7 @@ fn receive_messages(
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
     mut transform_query: Query<(Entity, &mut Transform, Has<Controlled>)>,
+    mut velocity_query: Query<(Entity, &mut LinearVelocity, Has<Controlled>)>,
 ) {
 
     loop {
@@ -328,7 +330,7 @@ fn receive_messages(
                             // ));
 
                             commands.spawn((
-                                Mesh3d(meshes.add(Plane3d::default().mesh().size(20000.0, 20000.0).subdivisions(10))),
+                                Mesh3d(meshes.add(Plane3d::default().mesh().size(2000.0, 2000.0).subdivisions(10))),
                                 MeshMaterial3d(standard_materials.add(Color::srgb(0.4, 0.5, 0.1))),
                                 Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)).with_translation(Vec3::new(0., 0., 0.)),
                             ));
@@ -403,6 +405,17 @@ fn receive_messages(
                                     transform.translation = position_package.position.clone().into();
                                     if !controlled {
                                         transform.rotation = position_package.rotation.clone().into();
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    ServerMessage::UpdateVelocities(velocity_packages) => {
+                        for package in velocity_packages {
+                            if let Some(entity) = entity_map.0.get(&package.net_id) {
+                                if let Ok((_, mut velocity, controlled)) = velocity_query.get_mut(*entity) {
+                                    if !controlled {
+                                        velocity.0 = package.velocity.into();
                                     }
                                 }
                             }

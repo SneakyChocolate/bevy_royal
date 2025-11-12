@@ -76,6 +76,7 @@ fn main() {
             broadcast_enemy_spawns,
             broadcast_player_spawns,
             broadcast_positions,
+            broadcast_velocities,
         ))
         .run();
 }
@@ -238,6 +239,7 @@ fn broadcast_enemy_spawns(
 }
 
 const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
+const VELOCITY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<VelocityPackage>() as f32).floor() as usize;
 
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
@@ -281,8 +283,56 @@ fn broadcast_positions(
             .collect();
 
         // Split into chunks and send
-        for enemy_chunk in nearby_entities.chunks(POSITION_PACKAGES_PER_MESSAGE) {
-            let message = ServerMessage::UpdatePositions(enemy_chunk.to_vec());
+        for chunk in nearby_entities.chunks(POSITION_PACKAGES_PER_MESSAGE) {
+            let message = ServerMessage::UpdatePositions(chunk.to_vec());
+            outgoing_sender.0.send((addr.addr, message)).unwrap();
+        }
+    }
+}
+
+fn broadcast_velocities(
+    outgoing_sender: Res<OutgoingSender>,
+    client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
+    mut query: Query<(Entity, &Transform, &LinearVelocity, Option<&mut LastBroadcast>)>,
+    net_id_map: ResMut<NetIDMap>,
+    time: Res<Time>,
+) {
+    let delta_secs = time.delta_secs();
+
+    // Process each client separately
+    for (_entity, addr, player_transform) in client_addresses.iter() {
+        let player_pos = player_transform.translation;
+        
+        // Collect enemies within radius for this specific player
+        let nearby_entities: Vec<VelocityPackage> = query
+            .iter_mut()
+            .filter_map(|(entity, entity_transform, entity_velocity, last_broadcast_option)| {
+                let distance = player_pos.distance(entity_transform.translation);
+                let net_id = net_id_map.0.get(&entity)?;
+                let position_package = Some(VelocityPackage {
+                    net_id: *net_id,
+                    velocity: entity_velocity.0.into(),
+                });
+
+                if let Some(mut last_broadcast) = last_broadcast_option {
+                    last_broadcast.0 += delta_secs;
+                    if last_broadcast.0 >= distance / 500. {
+                        last_broadcast.0 = -0.1;
+                        position_package
+                    }
+                    else {
+                        None
+                    }
+                }
+                else {
+                    position_package
+                }
+            })
+            .collect();
+
+        // Split into chunks and send
+        for chunk in nearby_entities.chunks(POSITION_PACKAGES_PER_MESSAGE) {
+            let message = ServerMessage::UpdateVelocities(chunk.to_vec());
             outgoing_sender.0.send((addr.addr, message)).unwrap();
         }
     }
