@@ -249,8 +249,8 @@ fn update_per_distance<T>(
 ) -> Option<T> {
     if let Some(mut last_broadcast) = last_broadcast_option {
         last_broadcast.0 += delta_secs;
-        if last_broadcast.0 >= distance / 500. {
-            last_broadcast.0 = -0.1;
+        if last_broadcast.0 >= distance / 10. {
+            last_broadcast.0 = 0.0;
             Some(package)
         }
         else {
@@ -265,7 +265,7 @@ fn update_per_distance<T>(
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    mut query: Query<(Entity, &Transform, Option<&mut LastBroadcast>)>,
+    mut query: Query<(Entity, &Transform, &mut LastBroadcast)>,
     net_id_map: ResMut<NetIDMap>,
     time: Res<Time>,
 ) {
@@ -287,7 +287,7 @@ fn broadcast_positions(
                     rotation: entity_transform.rotation.into(),
                 };
 
-                update_per_distance(package, delta_secs, last_broadcast_option, distance)
+                update_per_distance(package, delta_secs, Some(last_broadcast_option), distance)
             })
             .collect();
 
