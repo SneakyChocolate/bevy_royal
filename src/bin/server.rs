@@ -250,7 +250,7 @@ fn update_per_distance(
     if let Some(mut last_broadcast) = last_broadcast_option {
         let mut lb = last_broadcast.0.entry(addr).or_insert(0.);
         *lb += delta_secs;
-        if *lb >= distance / 100. {
+        if *lb >= distance / 10. {
             *lb = 0.0;
             true
         }
@@ -259,14 +259,14 @@ fn update_per_distance(
         }
     }
     else {
-        true
+        false
     }
 }
 
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    mut query: Query<(Entity, &Transform, Option<&mut LastBroadcast>), With<Player>>,
+    mut query: Query<(Entity, &Transform, Option<&mut LastBroadcast>)>,
     net_id_map: ResMut<NetIDMap>,
     time: Res<Time>,
 ) {
@@ -307,7 +307,7 @@ fn broadcast_positions(
 fn broadcast_velocities(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    mut query: Query<(Entity, &Transform, &LinearVelocity, Option<&mut LastBroadcast>), With<Player>>,
+    mut query: Query<(Entity, &Transform, &LinearVelocity, Option<&mut LastBroadcast>)>,
     net_id_map: ResMut<NetIDMap>,
     time: Res<Time>,
 ) {
