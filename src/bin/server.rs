@@ -30,7 +30,7 @@ pub struct IncomingReceiver(crossbeam::channel::Receiver<(SocketAddr, ClientMess
 pub struct OutgoingSender(crossbeam::channel::Sender<(SocketAddr, ServerMessage)>);
 
 #[derive(Component)]
-pub struct LastBroadcast(f32);
+pub struct LastBroadcast(pub HashMap<SocketAddr, f32>);
 
 fn main() {
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ClientMessage)>();
@@ -126,7 +126,7 @@ fn receive_messages(
                     MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
                     UpdateAddress {addr},
                     PendingSpawn,
-                    LastBroadcast(0.),
+                    LastBroadcast(HashMap::new()),
                 )).id();
 
                 net_id_map.0.insert(id, id_counter.0);
@@ -241,31 +241,32 @@ fn broadcast_enemy_spawns(
 const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
 const VELOCITY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<VelocityPackage>() as f32).floor() as usize;
 
-fn update_per_distance<T>(
-    package: T,
+fn update_per_distance(
+    addr: SocketAddr,
     delta_secs: f32,
     last_broadcast_option: Option<Mut<LastBroadcast>>,
     distance: f32,
-) -> Option<T> {
+) -> bool {
     if let Some(mut last_broadcast) = last_broadcast_option {
-        last_broadcast.0 += delta_secs;
-        if last_broadcast.0 >= distance / 10. {
-            last_broadcast.0 = 0.0;
-            Some(package)
+        let mut lb = last_broadcast.0.entry(addr).or_insert(0.);
+        *lb += delta_secs;
+        if *lb >= distance / 100. {
+            *lb = 0.0;
+            true
         }
         else {
-            None
+            false
         }
     }
     else {
-        Some(package)
+        true
     }
 }
 
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    mut query: Query<(Entity, &Transform, &mut LastBroadcast)>,
+    mut query: Query<(Entity, &Transform, Option<&mut LastBroadcast>), With<Player>>,
     net_id_map: ResMut<NetIDMap>,
     time: Res<Time>,
 ) {
@@ -281,13 +282,17 @@ fn broadcast_positions(
             .filter_map(|(entity, entity_transform, last_broadcast_option)| {
                 let distance = player_pos.distance(entity_transform.translation);
                 let net_id = net_id_map.0.get(&entity)?;
-                let package = PositionPackage {
-                    net_id: *net_id,
-                    position: entity_transform.translation.into(),
-                    rotation: entity_transform.rotation.into(),
-                };
 
-                update_per_distance(package, delta_secs, Some(last_broadcast_option), distance)
+                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, distance) {
+                    Some(PositionPackage {
+                        net_id: *net_id,
+                        position: entity_transform.translation.into(),
+                        rotation: entity_transform.rotation.into(),
+                    })
+                }
+                else {
+                    None
+                }
             })
             .collect();
 
@@ -302,7 +307,7 @@ fn broadcast_positions(
 fn broadcast_velocities(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    mut query: Query<(Entity, &Transform, &LinearVelocity, Option<&mut LastBroadcast>)>,
+    mut query: Query<(Entity, &Transform, &LinearVelocity, Option<&mut LastBroadcast>), With<Player>>,
     net_id_map: ResMut<NetIDMap>,
     time: Res<Time>,
 ) {
@@ -318,17 +323,21 @@ fn broadcast_velocities(
             .filter_map(|(entity, entity_transform, entity_velocity, last_broadcast_option)| {
                 let distance = player_pos.distance(entity_transform.translation);
                 let net_id = net_id_map.0.get(&entity)?;
-                let package = VelocityPackage {
-                    net_id: *net_id,
-                    velocity: entity_velocity.0.into(),
-                };
 
-                update_per_distance(package, delta_secs, last_broadcast_option, distance)
+                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, distance) {
+                    Some(VelocityPackage {
+                        net_id: *net_id,
+                        velocity: entity_velocity.0.into(),
+                    })
+                }
+                else {
+                    None
+                }
             })
             .collect();
 
         // Split into chunks and send
-        for chunk in nearby_entities.chunks(POSITION_PACKAGES_PER_MESSAGE) {
+        for chunk in nearby_entities.chunks(VELOCITY_PACKAGES_PER_MESSAGE) {
             let message = ServerMessage::UpdateVelocities(chunk.to_vec());
             outgoing_sender.0.send((addr.addr, message)).unwrap();
         }
@@ -413,7 +422,7 @@ fn spawn_enemies(
             Friction::ZERO.with_combine_rule(CoefficientCombine::Min), // Remove friction
             Enemy,
             Radius(enemy_radius),
-            LastBroadcast(0.),
+            LastBroadcast(HashMap::new()),
         )).id();
 
         net_id_map.0.insert(id, id_counter.0);
