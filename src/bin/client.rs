@@ -278,9 +278,12 @@ fn receive_messages(
 
     loop {
         match incoming_receiver.0.try_recv() {
-            Ok(server_message) => {
-                match server_message {
-                    ServerMessage::SpawnEntities(entity_packages) => {
+            Ok(ServerMessage {
+                reliable,
+                message,
+            }) => {
+                match message {
+                    ServerMessageInner::SpawnEntities(entity_packages) => {
                         for EntityPackage { net_id, components } in entity_packages {
                             if let Some(_) = entity_map.0.get(&net_id) {
                                 // already exists
@@ -298,7 +301,7 @@ fn receive_messages(
                             }
                         }
                     },
-                    ServerMessage::UpdateEntities(entity_packages) => {
+                    ServerMessageInner::UpdateEntities(entity_packages) => {
                         for EntityPackage { net_id, components } in entity_packages {
                             if let Some(entity) = entity_map.0.get(&net_id) {
                                 if let Ok(mut entity_commands) = commands.get_entity(*entity) {
@@ -310,7 +313,7 @@ fn receive_messages(
                         }
                     },
                     // receiv myself
-                    ServerMessage::Ok(net_id) => {
+                    ServerMessageInner::Ok(net_id) => {
                         println!("player was created successfully with id {:?}", net_id);
 
                         if !entity_map.0.contains_key(&net_id) {
@@ -398,7 +401,7 @@ fn receive_messages(
                             net_id_map.0.insert(id, net_id);
                         }
                     },
-                    ServerMessage::UpdatePositions(position_packages) => {
+                    ServerMessageInner::UpdatePositions(position_packages) => {
                         for position_package in position_packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
                                 if let Ok((_, mut transform, controlled)) = transform_query.get_mut(*entity) {
@@ -410,7 +413,7 @@ fn receive_messages(
                             }
                         }
                     },
-                    ServerMessage::UpdateVelocities(velocity_packages) => {
+                    ServerMessageInner::UpdateVelocities(velocity_packages) => {
                         for package in velocity_packages {
                             if let Some(entity) = entity_map.0.get(&package.net_id) {
                                 if let Ok((_, mut velocity, controlled)) = velocity_query.get_mut(*entity) {

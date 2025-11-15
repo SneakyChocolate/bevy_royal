@@ -147,7 +147,47 @@ pub struct EntityPackage {
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
-pub enum ServerMessage {
+pub struct ServerMessage {
+	// 0 means not reliable, otherwise put id so that it can be confirmed, in bevy just put 1 and the network thread will automatically assign
+	pub reliable: usize,
+	pub message: ServerMessageInner,
+}
+
+impl ServerMessage {
+	pub fn ok(reliable: usize, net_id: NetIDType) -> Self {
+		Self {
+			reliable,
+			message: ServerMessageInner::Ok(net_id),
+		}
+	}
+	pub fn spawn_entities(reliable: usize, packages: Vec<EntityPackage>) -> Self {
+		Self {
+			reliable,
+			message: ServerMessageInner::SpawnEntities(packages),
+		}
+	}
+	pub fn update_entities(reliable: usize, packages: Vec<EntityPackage>) -> Self {
+		Self {
+			reliable,
+			message: ServerMessageInner::UpdateEntities(packages),
+		}
+	}
+	pub fn update_positions(packages: Vec<PositionPackage>) -> Self {
+		Self {
+			reliable: 0,
+			message: ServerMessageInner::UpdatePositions(packages),
+		}
+	}
+	pub fn update_velocities(packages: Vec<VelocityPackage>) -> Self {
+		Self {
+			reliable: 0,
+			message: ServerMessageInner::UpdateVelocities(packages),
+		}
+	}
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
+pub enum ServerMessageInner {
 	Ok(NetIDType), // the id of the player so that it knows which id it is
 	SpawnEntities(Vec<EntityPackage>),
 	UpdateEntities(Vec<EntityPackage>),

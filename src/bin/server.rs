@@ -40,11 +40,16 @@ fn main() {
         let socket = UdpSocket::bind("0.0.0.0:7878").unwrap();
         socket.set_nonblocking(true).unwrap();
         let mut server_socket = ServerSocket::new(socket);
+
+        let mut reliable_packages = Vec::<ServerMessage>::new();
+
         loop {
             // get from game
             while let Ok((addr, outgoing_package)) = outgoing_receiver.try_recv() {
                 let bytes = outgoing_package.encode();
                 server_socket.send_to(&bytes, addr);
+
+                let ServerMessage {reliable, message} = outgoing_package;
             }
 
             // get from socket
@@ -131,7 +136,7 @@ fn receive_messages(
 
                 net_id_map.0.insert(id, id_counter.0);
                 entity_map.0.insert(id_counter.0, id);
-                outgoing_sender.0.send((addr, ServerMessage::Ok(id_counter.0))).unwrap();
+                outgoing_sender.0.send((addr, ServerMessage::ok(1, id_counter.0))).unwrap();
 
                 id_counter.0 += 1;
 
@@ -203,7 +208,7 @@ fn broadcast_player_spawns(
             ] });
         }
         for chonky in entity_packages.chunks(2) {
-            outgoing_sender.0.send((addr.addr, ServerMessage::SpawnEntities(chonky.to_vec()))).unwrap();
+            outgoing_sender.0.send((addr.addr, ServerMessage::spawn_entities(1, chonky.to_vec()))).unwrap();
         }
         println!("sending player spawn");
         commands.entity(id).remove::<PendingSpawn>();
@@ -232,7 +237,7 @@ fn broadcast_enemy_spawns(
             ] });
         }
         for chonky in entity_packages.chunks(2) {
-            outgoing_sender.0.send((addr.addr, ServerMessage::SpawnEntities(chonky.to_vec()))).unwrap();
+            outgoing_sender.0.send((addr.addr, ServerMessage::spawn_entities(1, chonky.to_vec()))).unwrap();
             // commands.entity(id).remove::<PendingSpawn>();
         }
     }
@@ -298,7 +303,7 @@ fn broadcast_positions(
 
         // Split into chunks and send
         for chunk in nearby_entities.chunks(POSITION_PACKAGES_PER_MESSAGE) {
-            let message = ServerMessage::UpdatePositions(chunk.to_vec());
+            let message = ServerMessage::update_positions(chunk.to_vec());
             outgoing_sender.0.send((addr.addr, message)).unwrap();
         }
     }
@@ -338,7 +343,7 @@ fn broadcast_velocities(
 
         // Split into chunks and send
         for chunk in nearby_entities.chunks(VELOCITY_PACKAGES_PER_MESSAGE) {
-            let message = ServerMessage::UpdateVelocities(chunk.to_vec());
+            let message = ServerMessage::update_velocities(chunk.to_vec());
             outgoing_sender.0.send((addr.addr, message)).unwrap();
         }
     }
