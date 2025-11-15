@@ -438,3 +438,11 @@ fn cursor_lock(
     cursor_options.grab_mode = CursorGrabMode::Locked;
     cursor_options.visible = false;
 }
+
+// TEMP
+fn print_enemy_count(
+    enemies: Query<Entity, With<Enemy>>,
+) {
+    let count = enemies.iter().count();
+    println!("enemeis: {count}");
+}
