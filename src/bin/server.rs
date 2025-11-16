@@ -41,12 +41,13 @@ fn main() {
         socket.set_nonblocking(true).unwrap();
         let mut server_socket = ServerSocket::new(socket);
 
+        let mut reliable_counter = 1;
         let mut reliable_packages = HashMap::<usize, ([u8; 1000], SocketAddr)>::new();
 
         loop {
             // resend all important messegaes if they werent confirmed yet
             for (reliable, (bytes, addr)) in reliable_packages.iter() {
-                server_socket.send_to(bytes, *addr);
+                // server_socket.send_to(bytes, *addr);
             }
 
             // get from game
@@ -55,7 +56,8 @@ fn main() {
                 server_socket.send_to(&bytes, addr);
 
                 if outgoing_package.reliable > 0 {
-                    reliable_packages.insert(outgoing_package.reliable, (bytes, addr));
+                    reliable_packages.insert(reliable_counter, (bytes, addr));
+                    reliable_counter += 1;
                 }
             }
 
