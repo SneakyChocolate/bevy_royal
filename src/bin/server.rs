@@ -287,7 +287,7 @@ fn update_per_distance(
     if let Some(mut last_broadcast) = last_broadcast_option {
         let mut lb = last_broadcast.0.entry(addr).or_insert(0.);
         *lb += delta_secs;
-        if *lb >= distance / 10. {
+        if *lb >= distance / 200. {
             *lb = 0.0;
             true
         }
