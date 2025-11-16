@@ -62,10 +62,11 @@ fn main() {
             }
 
             // get from game
-            while let Ok((addr, outgoing_package)) = outgoing_receiver.try_recv() {
+            while let Ok((addr, mut outgoing_package)) = outgoing_receiver.try_recv() {
+                if outgoing_package.reliable > 0 {
+                    outgoing_package.reliable = reliable_counter;
+                }
                 let bytes = outgoing_package.encode();
-                server_socket.send_to(&bytes, addr);
-
                 if outgoing_package.reliable > 0 {
                     reliable_packages.insert(reliable_counter, ReliablePackage {
                         bytes,
@@ -74,6 +75,7 @@ fn main() {
                     });
                     reliable_counter += 1;
                 }
+                server_socket.send_to(&bytes, addr);
             }
 
             // get from socket
