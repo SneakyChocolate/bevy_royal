@@ -41,15 +41,22 @@ fn main() {
         socket.set_nonblocking(true).unwrap();
         let mut server_socket = ServerSocket::new(socket);
 
-        let mut reliable_packages = Vec::<ServerMessage>::new();
+        let mut reliable_packages = HashMap::<usize, ([u8; 1000], SocketAddr)>::new();
 
         loop {
+            // resend all important messegaes if they werent confirmed yet
+            for (reliable, (bytes, addr)) in reliable_packages.iter() {
+                server_socket.send_to(bytes, *addr);
+            }
+
             // get from game
             while let Ok((addr, outgoing_package)) = outgoing_receiver.try_recv() {
                 let bytes = outgoing_package.encode();
                 server_socket.send_to(&bytes, addr);
 
-                let ServerMessage {reliable, message} = outgoing_package;
+                if outgoing_package.reliable > 0 {
+                    reliable_packages.insert(outgoing_package.reliable, (bytes, addr));
+                }
             }
 
             // get from socket
@@ -57,6 +64,9 @@ fn main() {
 
             while let Ok((len, addr)) = socket.recv_from(buf) {
                 if let Some(client_message) = ClientMessage::decode(&buf[..len]) {
+                    if let ClientMessage::Confirm(reliable) = &client_message {
+                        reliable_packages.remove(reliable);
+                    }
                     incoming_sender.send((addr, client_message)).unwrap();
                 }
             }
@@ -116,6 +126,7 @@ fn receive_messages(
 ) {
     while let Ok((addr, client_message)) = incoming_receiver.0.try_recv() {
         match client_message {
+            ClientMessage::Confirm(_) => {},
             ClientMessage::Login => {
                 // spawn player
                 let player_radius = 1.5;

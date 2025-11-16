@@ -267,6 +267,7 @@ fn rotate_player(
 
 fn receive_messages(
     incoming_receiver: Res<IncomingReceiver>,
+    outgoing_sender: Res<OutgoingSender>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
@@ -282,6 +283,9 @@ fn receive_messages(
                 reliable,
                 message,
             }) => {
+                if reliable > 0 {
+                    outgoing_sender.0.send(ClientMessage::Confirm(reliable));
+                }
                 match message {
                     ServerMessageInner::SpawnEntities(entity_packages) => {
                         for EntityPackage { net_id, components } in entity_packages {

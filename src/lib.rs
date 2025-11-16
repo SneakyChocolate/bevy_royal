@@ -215,6 +215,7 @@ pub enum ClientMessage {
 	Login,
 	SetVelocity(NetIDType, MyVec2),
 	Rotation(NetIDType, MyQuat),
+	Confirm(usize), // confirm an important message from the server, so the server doesnt resend (tcp immitation)
 }
 
 impl ClientMessage {
