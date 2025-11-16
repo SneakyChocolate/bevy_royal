@@ -27,7 +27,7 @@ impl ClientSocket {
         }
     }
     pub fn send(&self, bytes: &[u8]) {
-        self.socket.send_to(bytes, &self.target).unwrap();
+        self.socket.send_to(bytes, &self.target)/* .unwrap() */;
     }
 }
 
@@ -318,9 +318,8 @@ fn receive_messages(
                     },
                     // receiv myself
                     ServerMessageInner::Ok(net_id) => {
-                        println!("player was created successfully with id {:?}", net_id);
-
                         if !entity_map.0.contains_key(&net_id) {
+                            println!("player was created successfully with id {:?}", net_id);
 
                             commands.insert_resource(AmbientLight {
                                 brightness: 1.,
