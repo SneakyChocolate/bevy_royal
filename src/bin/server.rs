@@ -32,6 +32,13 @@ pub struct OutgoingSender(crossbeam::channel::Sender<(SocketAddr, ServerMessage)
 #[derive(Component)]
 pub struct LastBroadcast(pub HashMap<SocketAddr, f32>);
 
+struct ReliablePackage {
+    bytes: [u8; 1000],
+    addr: SocketAddr,
+    last_send: std::time::Instant,
+}
+
+
 fn main() {
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ClientMessage)>();
     let (outgoing_sender, outgoing_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ServerMessage)>();
@@ -42,12 +49,16 @@ fn main() {
         let mut server_socket = ServerSocket::new(socket);
 
         let mut reliable_counter = 1;
-        let mut reliable_packages = HashMap::<usize, ([u8; 1000], SocketAddr)>::new();
+        let mut reliable_packages = HashMap::<usize, ReliablePackage>::new();
 
         loop {
             // resend all important messegaes if they werent confirmed yet
-            for (reliable, (bytes, addr)) in reliable_packages.iter() {
-                // server_socket.send_to(bytes, *addr);
+            let now = std::time::Instant::now();
+            for (_, packet) in reliable_packages.iter_mut() {
+                if now.duration_since(packet.last_send) > std::time::Duration::from_millis(300) {
+                    server_socket.send_to(&packet.bytes, packet.addr);
+                    packet.last_send = now;
+                }
             }
 
             // get from game
@@ -56,7 +67,11 @@ fn main() {
                 server_socket.send_to(&bytes, addr);
 
                 if outgoing_package.reliable > 0 {
-                    reliable_packages.insert(reliable_counter, (bytes, addr));
+                    reliable_packages.insert(reliable_counter, ReliablePackage {
+                        bytes,
+                        addr,
+                        last_send: now,
+                    });
                     reliable_counter += 1;
                 }
             }
@@ -72,6 +87,8 @@ fn main() {
                     incoming_sender.send((addr, client_message)).unwrap();
                 }
             }
+
+            std::thread::sleep(std::time::Duration::from_millis(1));
         }
     });
 
@@ -249,7 +266,7 @@ fn broadcast_enemy_spawns(
                 (*radius).into(),
             ] });
         }
-        for chonky in entity_packages.chunks(2) {
+        for chonky in entity_packages.chunks(5) {
             outgoing_sender.0.send((addr.addr, ServerMessage::spawn_entities(1, chonky.to_vec()))).unwrap();
             // commands.entity(id).remove::<PendingSpawn>();
         }
