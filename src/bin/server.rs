@@ -104,7 +104,11 @@ fn main() {
         .insert_resource(NetIDMap::default())
         .add_plugins(DefaultPlugins)
         .add_plugins(PhysicsPlugins::default())
-        .add_systems(Startup, (setup, spawn_enemies))
+        .add_systems(Startup, (
+            setup,
+            spawn_enemies,
+            spawn_walls,
+        ))
         .add_systems(Update, (
             receive_messages,
             apply_velocity_system,
@@ -420,6 +424,43 @@ fn setup(
     ));
 }
 
+const HALF_BOUNDARY: f32 = 1000.0;
+
+fn spawn_walls(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let mut rng = rand::rng();
+    // + Spawn static boundary colliders
+    let thickness = 10.0;
+    let wall_material = MeshMaterial3d(materials.add(Color::srgb(
+        rng.random_range(0.0..4.0),
+        rng.random_range(0.0..4.0),
+        rng.random_range(0.0..4.0),
+    )));
+    for &pos in &[-HALF_BOUNDARY, HALF_BOUNDARY] {
+        // spawn vertical walls
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::new(thickness, HALF_BOUNDARY * 2., 5.))),
+            wall_material.clone(),
+            Transform::from_xyz(pos, 0., 0.),
+            RigidBody::Static,
+            Collider::cuboid(thickness, HALF_BOUNDARY * 2., 5.),
+            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
+        ));
+        // spawn horizontal walls
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::new(HALF_BOUNDARY * 2., thickness, 5.))),
+            wall_material.clone(),
+            Transform::from_xyz(0., pos, 0.),
+            RigidBody::Static,
+            Collider::cuboid(HALF_BOUNDARY * 2., thickness, 5.),
+            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
+        ));
+    }
+}
+
 fn spawn_enemies(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -429,38 +470,10 @@ fn spawn_enemies(
     mut entity_map: ResMut<EntityMap>,
 ) {
     let mut rng = rand::rng();
-    // + Spawn static boundary colliders
-    let half_boundary = 1000.0;
-    let thickness = 10.0;
-    let wall_material = MeshMaterial3d(materials.add(Color::srgb(
-        rng.random_range(0.0..4.0),
-        rng.random_range(0.0..4.0),
-        rng.random_range(0.0..4.0),
-    )));
-    for &pos in &[-half_boundary, half_boundary] {
-        // spawn vertical walls
-        commands.spawn((
-            Mesh3d(meshes.add(Cuboid::new(thickness, half_boundary * 2., 5.))),
-            wall_material.clone(),
-            Transform::from_xyz(pos, 0., 0.),
-            RigidBody::Static,
-            Collider::cuboid(thickness, half_boundary * 2., 5.),
-            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
-        ));
-        // spawn horizontal walls
-        commands.spawn((
-            Mesh3d(meshes.add(Cuboid::new(half_boundary * 2., thickness, 5.))),
-            wall_material.clone(),
-            Transform::from_xyz(0., pos, 0.),
-            RigidBody::Static,
-            Collider::cuboid(half_boundary * 2., thickness, 5.),
-            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
-        ));
-    }
 
     for _ in 0..2000 {
         let velocity = LinearVelocity(random_velocity(3., 9.));
-        let position = random_position(half_boundary);
+        let position = random_position(HALF_BOUNDARY);
         let material = MeshMaterial3d(materials.add(Color::srgb(
             rng.random_range(0.0..4.0),
             rng.random_range(0.0..4.0),

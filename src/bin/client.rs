@@ -125,7 +125,7 @@ fn setup(
     outgoing_sender: Res<OutgoingSender>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
     let login_message = ClientMessage::Login;
@@ -135,24 +135,24 @@ fn setup(
     // + Spawn static boundary colliders
     let half_boundary = 3000.0;
     let thickness = 10.0;
-    let wall_material = MeshMaterial2d(materials.add(Color::srgb(
+    let wall_material = MeshMaterial3d(materials.add(Color::srgb(
         rng.random_range(0.0..4.0),
         rng.random_range(0.0..4.0),
         rng.random_range(0.0..4.0),
     )));
     for &pos in &[-half_boundary, half_boundary] {
-        // vertical walls
+        // spawn vertical walls
         commands.spawn((
-            Mesh2d(meshes.add(Rectangle::new(thickness, half_boundary * 2.))),
+            Mesh3d(meshes.add(Cuboid::new(thickness, half_boundary * 2., 5.))),
             wall_material.clone(),
             Transform::from_xyz(pos, 0., 0.),
             RigidBody::Static,
             Collider::cuboid(thickness, half_boundary * 2., 5.),
             CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
         ));
-        // horizontal walls
+        // spawn horizontal walls
         commands.spawn((
-            Mesh2d(meshes.add(Rectangle::new(half_boundary * 2., thickness))),
+            Mesh3d(meshes.add(Cuboid::new(half_boundary * 2., thickness, 5.))),
             wall_material.clone(),
             Transform::from_xyz(0., pos, 0.),
             RigidBody::Static,
@@ -189,7 +189,7 @@ fn player_movement_system(
     outgoing_sender: Res<OutgoingSender>,
     net_id_map: Res<NetIDMap>,
 ) {
-    let speed = 8.0;
+    let speed = 80.0;
 
     for (player_entity, mut velocity, alive, camera_transform) in player_query.iter_mut() {
         let (yaw, _pitch, _roll) = camera_transform.rotation.to_euler(EulerRot::ZXY);
