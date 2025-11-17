@@ -384,6 +384,8 @@ fn broadcast_velocities(
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut standard_materials: ResMut<Assets<StandardMaterial>>,
 ) {
     commands.insert_resource(AmbientLight {
         brightness: 50.,
@@ -396,10 +398,15 @@ fn setup(
             clear_color: ClearColorConfig::Custom(Color::BLACK),
             ..default()
         },
-        Transform::from_xyz(0., 0., 1000.).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(0., 0., 500.).looking_at(Vec3::ZERO, Vec3::Y),
         Tonemapping::TonyMcMapface,
         Bloom::default(),
         DebandDither::Enabled,
+    ));
+    commands.spawn((
+        Mesh3d(meshes.add(Plane3d::default().mesh().size(2000.0, 2000.0).subdivisions(10))),
+        MeshMaterial3d(standard_materials.add(Color::srgb(0.4, 0.5, 0.1))),
+        Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)).with_translation(Vec3::new(0., 0., 0.)),
     ));
 
     commands.spawn((
