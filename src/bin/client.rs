@@ -165,7 +165,7 @@ fn setup(
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("fiebigershof.glb"),
         )),
-        Transform::from_xyz(0., 0., 0.)
+        Transform::from_xyz(20., -20., 0.)
             .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
             .with_scale(Vec3::splat(50.))
         ,

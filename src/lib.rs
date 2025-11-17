@@ -281,9 +281,9 @@ impl Into<NetComponent> for Transform {
 	    }
     }
 }
-impl Into<NetComponent> for ColorMaterial {
+impl Into<NetComponent> for StandardMaterial {
     fn into(self) -> NetComponent {
-        let color = self.color.to_srgba();
+        let color = self.base_color.to_srgba();
         NetComponent::ColorMaterial {
             r: color.red,
             g: color.green,

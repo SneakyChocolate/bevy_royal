@@ -138,7 +138,7 @@ fn receive_messages(
     outgoing_sender: Res<OutgoingSender>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut id_counter: ResMut<IDCounter>,
     mut net_id_map: ResMut<NetIDMap>,
     mut entity_map: ResMut<EntityMap>,
@@ -159,8 +159,8 @@ fn receive_messages(
                     Velocity(Vec3::ZERO),
                     // LinearVelocity(Vec2::new(-200., 0.)),
                     // RigidBody::Dynamic,
-                    Mesh2d(meshes.add(Circle::new(player_radius))),
-                    MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
+                    Mesh3d(meshes.add(Sphere::new(player_radius))),
+                    MeshMaterial3d(materials.add(Color::srgb(0., 1., 0.))),
                     UpdateAddress {addr},
                     PendingSpawn,
                     LastBroadcast(HashMap::new()),
@@ -216,15 +216,15 @@ fn receive_messages(
 fn broadcast_player_spawns(
     outgoing_sender: Res<OutgoingSender>,
     mut commands: Commands,
-    materials: ResMut<Assets<ColorMaterial>>,
+    materials: ResMut<Assets<StandardMaterial>>,
     net_id_map: ResMut<NetIDMap>,
     client_addresses: Query<(Entity, &UpdateAddress), With<PendingSpawn>>,
-    player_query: Query<(Entity, &Transform, &Velocity, &MeshMaterial2d<ColorMaterial>, &Player, &Alive, &Radius)>,
+    player_query: Query<(Entity, &Transform, &Velocity, &MeshMaterial3d<StandardMaterial>, &Player, &Alive, &Radius)>,
 ) {
     for (id, addr) in client_addresses.iter() {
         // println!("client spawn");
         let mut entity_packages = Vec::<EntityPackage>::new();
-        for (entity, transform, velocity, meshmaterial2d, player, alive, radius) in &player_query {
+        for (entity, transform, velocity, meshmaterial3d, player, alive, radius) in &player_query {
             println!("player broadcast");
             let net_id = net_id_map.0.get(&entity).unwrap();
             entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
@@ -232,7 +232,7 @@ fn broadcast_player_spawns(
                 NetComponent::Sphere(radius.0),
                 (*transform).into(),
                 (*velocity).into(),
-                (materials.get(meshmaterial2d).unwrap().clone()).into(),
+                (materials.get(meshmaterial3d).unwrap().clone()).into(),
                 (*player).into(),
                 (*alive).into(),
                 (*radius).into(),
@@ -249,21 +249,21 @@ fn broadcast_player_spawns(
 
 fn broadcast_enemy_spawns(
     outgoing_sender: Res<OutgoingSender>,
-    materials: ResMut<Assets<ColorMaterial>>,
+    materials: ResMut<Assets<StandardMaterial>>,
     net_id_map: ResMut<NetIDMap>,
     client_addresses: Query<(Entity, &UpdateAddress), With<PendingSpawn>>,
-    enemy_query: Query<(Entity, &Transform, &LinearVelocity, &MeshMaterial2d<ColorMaterial>, &Enemy, &Radius)>,
+    enemy_query: Query<(Entity, &Transform, &LinearVelocity, &MeshMaterial3d<StandardMaterial>, &Enemy, &Radius)>,
 ) {
     for (_, addr) in client_addresses.iter() {
         let mut entity_packages = Vec::<EntityPackage>::new();
-        for (entity, transform, velocity, meshmaterial2d, enemy, radius) in &enemy_query {
+        for (entity, transform, velocity, meshmaterial3d, enemy, radius) in &enemy_query {
             let net_id = net_id_map.0.get(&entity).unwrap();
             entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
                 (*transform).into(),
                 NetComponent::Sphere(radius.0),
                 (*transform).into(),
                 (*velocity).into(),
-                (materials.get(meshmaterial2d).unwrap().clone()).into(),
+                (materials.get(meshmaterial3d).unwrap().clone()).into(),
                 (*enemy).into(),
                 (*radius).into(),
             ] });
@@ -383,24 +383,40 @@ fn broadcast_velocities(
 
 fn setup(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
 ) {
+    commands.insert_resource(AmbientLight {
+        brightness: 50.,
+        ..Default::default()
+    });
+
     commands.spawn((
-        Camera2d,
+        Camera3d::default(),
         Camera {
             clear_color: ClearColorConfig::Custom(Color::BLACK),
             ..default()
         },
-        Transform::from_xyz(0., 0., 0.),
+        Transform::from_xyz(0., 0., 1000.).looking_at(Vec3::ZERO, Vec3::Y),
         Tonemapping::TonyMcMapface,
         Bloom::default(),
         DebandDither::Enabled,
+    ));
+
+    commands.spawn((
+        SceneRoot(asset_server.load(
+            GltfAssetLabel::Scene(0).from_asset("fiebigershof.glb"),
+        )),
+        Transform::from_xyz(20., -20., 0.)
+            .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(50.))
+        ,
     ));
 }
 
 fn spawn_enemies(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut id_counter: ResMut<IDCounter>,
     mut net_id_map: ResMut<NetIDMap>,
     mut entity_map: ResMut<EntityMap>,
@@ -409,7 +425,7 @@ fn spawn_enemies(
     // + Spawn static boundary colliders
     let half_boundary = 1000.0;
     let thickness = 10.0;
-    let wall_material = MeshMaterial2d(materials.add(Color::srgb(
+    let wall_material = MeshMaterial3d(materials.add(Color::srgb(
         rng.random_range(0.0..4.0),
         rng.random_range(0.0..4.0),
         rng.random_range(0.0..4.0),
@@ -417,7 +433,7 @@ fn spawn_enemies(
     for &pos in &[-half_boundary, half_boundary] {
         // spawn vertical walls
         commands.spawn((
-            Mesh2d(meshes.add(Rectangle::new(thickness, half_boundary * 2.))),
+            Mesh3d(meshes.add(Cuboid::new(thickness, half_boundary * 2., 5.))),
             wall_material.clone(),
             Transform::from_xyz(pos, 0., 0.),
             RigidBody::Static,
@@ -426,7 +442,7 @@ fn spawn_enemies(
         ));
         // spawn horizontal walls
         commands.spawn((
-            Mesh2d(meshes.add(Rectangle::new(half_boundary * 2., thickness))),
+            Mesh3d(meshes.add(Cuboid::new(half_boundary * 2., thickness, 5.))),
             wall_material.clone(),
             Transform::from_xyz(0., pos, 0.),
             RigidBody::Static,
@@ -438,7 +454,7 @@ fn spawn_enemies(
     for _ in 0..2000 {
         let velocity = LinearVelocity(random_velocity(3., 9.));
         let position = random_position(half_boundary);
-        let material = MeshMaterial2d(materials.add(Color::srgb(
+        let material = MeshMaterial3d(materials.add(Color::srgb(
             rng.random_range(0.0..4.0),
             rng.random_range(0.0..4.0),
             rng.random_range(0.0..4.0),
@@ -449,7 +465,7 @@ fn spawn_enemies(
         // spawn enemy
         let id = commands.spawn((
             Transform::from_translation(position.extend(enemy_radius)),
-            Mesh2d(meshes.add(Circle::new(enemy_radius))),
+            Mesh3d(meshes.add(Sphere::new(enemy_radius))),
             material,
             RigidBody::Dynamic,
             Collider::sphere(enemy_radius),
