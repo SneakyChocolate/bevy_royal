@@ -402,7 +402,7 @@ fn setup(
             clear_color: ClearColorConfig::Custom(Color::BLACK),
             ..default()
         },
-        Transform::from_xyz(0., -2000., 500.).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(0., 0., 500.).looking_at(Vec3::ZERO, Vec3::Y),
         Tonemapping::TonyMcMapface,
         Bloom::default(),
         DebandDither::Enabled,
@@ -414,6 +414,9 @@ fn setup(
     ));
 
     commands.spawn((
+        ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
+        CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
+
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("fiebigershof.glb"),
         )),
