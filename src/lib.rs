@@ -92,21 +92,6 @@ impl Into<MyQuat> for Quat {
 }
 
 #[derive(Encode, Decode, Debug, Clone, Copy)]
-pub struct Rotation2d(pub f32);
-
- impl Into<Quat> for Rotation2d {
-    fn into(self) -> Quat {
-        Quat::from_rotation_z(self.0.to_radians())
-    }
-}
-
-#[derive(Encode, Decode, Debug, Clone, Copy)]
-pub struct Rotation3d {
-    horizontal: f32,
-    vertical: f32,
-}
-
-#[derive(Encode, Decode, Debug, Clone, Copy)]
 pub struct MyVec2 {
     x: f32,
     y: f32,
