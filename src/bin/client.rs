@@ -288,6 +288,7 @@ fn receive_messages(
                     outgoing_sender.0.send(ClientMessage::Confirm(reliable));
                 }
                 match message {
+
                     ServerMessageInner::SpawnEntities(entity_packages) => {
                         for EntityPackage { net_id, components } in entity_packages {
                             if let Some(_) = entity_map.0.get(&net_id) {
@@ -403,6 +404,7 @@ fn receive_messages(
 
                             entity_map.0.insert(net_id, id);
                             net_id_map.0.insert(id, net_id);
+
                         }
                     },
                     ServerMessageInner::UpdatePositions(position_packages) => {
