@@ -59,6 +59,7 @@ impl ClientSocket {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+
     let server_address = args.get(1).cloned().unwrap_or("127.0.0.1:7878".to_string());
 
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<ServerMessage>();

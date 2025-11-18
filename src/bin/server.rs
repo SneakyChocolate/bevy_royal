@@ -412,7 +412,8 @@ fn setup(
     commands.spawn((
         Mesh3d(meshes.add(Plane3d::default().mesh().size(2000.0, 2000.0).subdivisions(10))),
         MeshMaterial3d(standard_materials.add(Color::srgb(0.4, 0.5, 0.1))),
-        Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)).with_translation(Vec3::new(0., 0., 0.)),
+        Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
+            .with_translation(Vec3::new(0., 0., 0.)),
     ));
 
     commands.spawn((

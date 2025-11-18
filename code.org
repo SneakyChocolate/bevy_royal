@@ -816,7 +816,8 @@ fn setup(
     commands.spawn((
         Mesh3d(meshes.add(Plane3d::default().mesh().size(2000.0, 2000.0).subdivisions(10))),
         MeshMaterial3d(standard_materials.add(Color::srgb(0.4, 0.5, 0.1))),
-        Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)).with_translation(Vec3::new(0., 0., 0.)),
+        Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
+            .with_translation(Vec3::new(0., 0., 0.)),
     ));
 
     commands.spawn((
@@ -833,6 +834,10 @@ fn setup(
     ));
 }
 
+#+end_src
+
+*** spawn walls
+#+begin_src rust :tangle src/bin/server.rs
 const HALF_BOUNDARY: f32 = 1000.0;
 
 fn spawn_walls(
@@ -870,6 +875,10 @@ fn spawn_walls(
     }
 }
 
+#+end_src
+
+*** spawn enemies
+#+begin_src rust :tangle src/bin/server.rs
 fn spawn_enemies(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -991,7 +1000,7 @@ impl Default for CameraSensitivity {
 
 #+end_src
 
-** main
+** client socket
 #+begin_src rust :tangle src/bin/client.rs
 pub struct ClientSocket {
     pub target: String,
@@ -1014,8 +1023,16 @@ impl ClientSocket {
     }
 }
 
+#+end_src
+
+** main
+#+begin_src rust :tangle src/bin/client.rs
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+#+end_src
+
+*** network thread
+#+begin_src rust :tangle src/bin/client.rs
     let server_address = args.get(1).cloned().unwrap_or("127.0.0.1:7878".to_string());
 
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<ServerMessage>();
@@ -1070,6 +1087,10 @@ fn main() {
         }
     });
 
+#+end_src
+
+*** bevy app
+#+begin_src rust :tangle src/bin/client.rs
     App::new()
         .insert_resource(IncomingReceiver(incoming_receiver))
         .insert_resource(OutgoingSender(outgoing_sender))
@@ -1092,10 +1113,8 @@ fn main() {
 }
 #+end_src
 
-** setup
+** setup spawn walls glb house
 #+begin_src rust :tangle src/bin/client.rs
-
-
 fn setup(
     outgoing_sender: Res<OutgoingSender>,
     mut commands: Commands,
