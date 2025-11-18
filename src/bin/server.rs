@@ -31,6 +31,7 @@ struct ReliablePackage {
 }
 
 fn main() {
+
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ClientMessage)>();
     let (outgoing_sender, outgoing_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ServerMessage)>();
 

@@ -10,6 +10,32 @@ use std::f32::consts::FRAC_PI_2;
 
 const FOG_COLOR: Color = Color::srgb(0.15, 0.20, 0.30);
 
+#[derive(Resource)]
+pub struct IncomingReceiver(crossbeam::channel::Receiver<ServerMessage>);
+#[derive(Resource)]
+pub struct OutgoingSender(crossbeam::channel::Sender<ClientMessage>);
+#[derive(Resource, Default)]
+struct NetIDMap(HashMap<Entity, NetIDType>);
+#[derive(Resource, Default)]
+struct EntityMap(HashMap<NetIDType, Entity>);
+
+#[derive(Component)]
+struct Controlled;
+
+#[derive(Debug, Component)]
+struct Player;
+
+#[derive(Debug, Component, Deref, DerefMut)]
+struct CameraSensitivity(Vec2);
+
+impl Default for CameraSensitivity {
+    fn default() -> Self {
+        Self(
+            Vec2::new(0.003, 0.003),
+        )
+    }
+}
+
 pub struct ClientSocket {
     pub target: String,
     pub socket: UdpSocket,
@@ -30,11 +56,6 @@ impl ClientSocket {
         self.socket.send_to(bytes, &self.target)/* .unwrap() */;
     }
 }
-
-#[derive(Resource)]
-pub struct IncomingReceiver(crossbeam::channel::Receiver<ServerMessage>);
-#[derive(Resource)]
-pub struct OutgoingSender(crossbeam::channel::Sender<ClientMessage>);
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -113,14 +134,6 @@ fn main() {
         .run();
 }
 
-#[derive(Resource, Default)]
-struct NetIDMap(HashMap<Entity, NetIDType>);
-#[derive(Resource, Default)]
-struct EntityMap(HashMap<NetIDType, Entity>);
-
-#[derive(Component)]
-struct Controlled;
-
 fn setup(
     outgoing_sender: Res<OutgoingSender>,
     mut commands: Commands,
@@ -198,9 +211,9 @@ fn player_movement_system(
 
         let forward = yaw_rotation * Vec3::Y;
         let forward_2d = Vec2::new(forward.x, forward.y).normalize_or_zero();
-        
+
         let right_2d = Vec2::new(-forward_2d.y, forward_2d.x);
-        
+
         if alive.0 {
             let mut dir = Vec2::ZERO;
 
@@ -223,19 +236,6 @@ fn player_movement_system(
     }
 }
 
-#[derive(Debug, Component)]
-struct Player;
-
-#[derive(Debug, Component, Deref, DerefMut)]
-struct CameraSensitivity(Vec2);
-
-impl Default for CameraSensitivity {
-    fn default() -> Self {
-        Self(
-            Vec2::new(0.003, 0.003),
-        )
-    }
-}
 
 fn rotate_player(
     accumulated_mouse_motion: Res<AccumulatedMouseMotion>,
@@ -340,7 +340,7 @@ fn receive_messages(
                                 MeshMaterial3d(standard_materials.add(Color::srgb(0.4, 0.5, 0.1))),
                                 Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)).with_translation(Vec3::new(0., 0., 0.)),
                             ));
-                            
+
                             // spawn player
                             let player_radius = 1.5;
                             let id = commands.spawn((
@@ -353,7 +353,7 @@ fn receive_messages(
                                 Radius(player_radius),
                                 Controlled,
                                 CameraSensitivity::default(),
-                                
+
                                 children![
                                     (
                                         Camera3d::default(),
@@ -436,7 +436,6 @@ fn receive_messages(
         }
     }
 }
-
 
 fn cursor_lock(
     mut cursor_options: Single<&mut CursorOptions, With<PrimaryWindow>>,
