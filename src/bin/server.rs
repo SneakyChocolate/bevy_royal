@@ -24,20 +24,11 @@ impl ServerSocket {
     }
 }
 
-#[derive(Resource)]
-pub struct IncomingReceiver(crossbeam::channel::Receiver<(SocketAddr, ClientMessage)>);
-#[derive(Resource)]
-pub struct OutgoingSender(crossbeam::channel::Sender<(SocketAddr, ServerMessage)>);
-
-#[derive(Component)]
-pub struct LastBroadcast(pub HashMap<SocketAddr, f32>);
-
 struct ReliablePackage {
     bytes: [u8; 1000],
     addr: SocketAddr,
     last_send: std::time::Instant,
 }
-
 
 fn main() {
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ClientMessage)>();
@@ -121,13 +112,15 @@ fn main() {
         .run();
 }
 
-#[derive(Component)]
-pub struct UpdateAddress {
-    addr: SocketAddr,
-}
+#[derive(Resource)]
+pub struct IncomingReceiver(crossbeam::channel::Receiver<(SocketAddr, ClientMessage)>);
+
+#[derive(Resource)]
+pub struct OutgoingSender(crossbeam::channel::Sender<(SocketAddr, ServerMessage)>);
 
 #[derive(Resource, Default)]
 struct NetIDMap(HashMap<Entity, NetIDType>);
+
 #[derive(Resource, Default)]
 struct EntityMap(HashMap<NetIDType, Entity>);
 
@@ -135,7 +128,15 @@ struct EntityMap(HashMap<NetIDType, Entity>);
 struct IDCounter(pub NetIDType);
 
 #[derive(Component)]
+pub struct LastBroadcast(pub HashMap<SocketAddr, f32>);
+
+#[derive(Component)]
 struct PendingSpawn;
+
+#[derive(Component)]
+pub struct UpdateAddress {
+    addr: SocketAddr,
+}
 
 fn receive_messages(
     incoming_receiver: Res<IncomingReceiver>,
@@ -316,7 +317,7 @@ fn broadcast_positions(
     // Process each client separately
     for (_entity, addr, player_transform) in client_addresses.iter() {
         let player_pos = player_transform.translation;
-        
+
         // Collect enemies within radius for this specific player
         let nearby_entities: Vec<PositionPackage> = query
             .iter_mut()
@@ -357,7 +358,7 @@ fn broadcast_velocities(
     // Process each client separately
     for (_entity, addr, player_transform) in client_addresses.iter() {
         let player_pos = player_transform.translation;
-        
+
         // Collect enemies within radius for this specific player
         let nearby_entities: Vec<VelocityPackage> = query
             .iter_mut()

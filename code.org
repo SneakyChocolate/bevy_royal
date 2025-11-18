@@ -377,7 +377,7 @@ impl NetComponent {
 
 * server.rs
 ** imports
-#+begin_src rust :src/bin/server.rs
+#+begin_src rust :tangle src/bin/server.rs
 use std::net::{SocketAddr, UdpSocket};
 use std::collections::HashMap;
 use bevy_royal::*;
@@ -412,7 +412,7 @@ struct ReliablePackage {
 #+end_src
 
 ** main
-#+begin_src rust :src/bin/server.rs
+#+begin_src rust :tangle src/bin/server.rs
 fn main() {
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ClientMessage)>();
     let (outgoing_sender, outgoing_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ServerMessage)>();
@@ -471,7 +471,7 @@ fn main() {
 #+end_src
 
 *** bevy app
-#+begin_src rust :src/bin/server.rs
+#+begin_src rust :tangle src/bin/server.rs
     App::new()
         .insert_resource(IncomingReceiver(incoming_receiver))
         .insert_resource(OutgoingSender(outgoing_sender))
@@ -501,7 +501,7 @@ fn main() {
 #+end_src
 
 ** components and resources
-#+begin_src rust :src/bin/server.rs
+#+begin_src rust :tangle src/bin/server.rs
 
 #[derive(Resource)]
 pub struct IncomingReceiver(crossbeam::channel::Receiver<(SocketAddr, ClientMessage)>);
@@ -532,7 +532,7 @@ pub struct UpdateAddress {
 #+end_src
 
 ** receive messages
-#+begin_src rust :src/bin/server.rs
+#+begin_src rust :tangle src/bin/server.rs
 fn receive_messages(
     incoming_receiver: Res<IncomingReceiver>,
     outgoing_sender: Res<OutgoingSender>,
@@ -616,7 +616,7 @@ fn receive_messages(
 #+end_src
 
 ** send messages
-#+begin_src rust :src/bin/server.rs
+#+begin_src rust :tangle src/bin/server.rs
 fn broadcast_player_spawns(
     outgoing_sender: Res<OutgoingSender>,
     mut commands: Commands,
@@ -788,7 +788,7 @@ fn broadcast_velocities(
 #+end_src
 
 ** setup
-#+begin_src rust :src/bin/server.rs
+#+begin_src rust :tangle src/bin/server.rs
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -914,7 +914,7 @@ fn spawn_enemies(
 #+end_src
 
 ** gameplay
-#+begin_src rust :src/bin/server.rs
+#+begin_src rust :tangle src/bin/server.rs
 fn apply_velocity_system(
     time: Res<Time>,
     query: Query<(&mut Transform, &Velocity)>,
