@@ -1,7 +1,7 @@
 #+title: Code
 
 * lib.rs
-** imports
+** lib.rs imports
 #+begin_src rust :tangle src/lib.rs
 pub use avian3d::prelude::*;
 use bincode::{Decode, Encode};
@@ -14,7 +14,7 @@ pub use bevy::{
 };
 #+end_src
 
-** components
+** lib.rs components
 #+begin_src rust :tangle src/lib.rs
 pub type NetIDType = u128;
 
@@ -37,7 +37,7 @@ pub struct Alive(pub bool);
 pub struct Enemy;
 #+end_src
 
-** random functions
+** lib.rs random functions
 #+begin_src rust :tangle src/lib.rs
 pub fn random_velocity(min: f32, max: f32) -> Vec3 {
     let mut rng = rand::rng();
@@ -55,7 +55,47 @@ pub fn random_position(range: f32) -> Vec2 {
 }
 #+end_src
 
-** my data types
+** lib.rs spawn walls
+#+begin_src rust :tangle src/lib.rs
+pub const HALF_BOUNDARY: f32 = 1000.0;
+
+pub fn spawn_walls(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let mut rng = rand::rng();
+    // + Spawn static boundary colliders
+    let thickness = 10.0;
+    let wall_material = MeshMaterial3d(materials.add(Color::srgb(
+        rng.random_range(0.0..4.0),
+        rng.random_range(0.0..4.0),
+        rng.random_range(0.0..4.0),
+    )));
+    for &pos in &[-HALF_BOUNDARY, HALF_BOUNDARY] {
+        // spawn vertical walls
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::new(thickness, HALF_BOUNDARY * 2., 5.))),
+            wall_material.clone(),
+            Transform::from_xyz(pos, 0., 0.),
+            RigidBody::Static,
+            Collider::cuboid(thickness, HALF_BOUNDARY * 2., 5.),
+            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
+        ));
+        // spawn horizontal walls
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::new(HALF_BOUNDARY * 2., thickness, 5.))),
+            wall_material.clone(),
+            Transform::from_xyz(0., pos, 0.),
+            RigidBody::Static,
+            Collider::cuboid(HALF_BOUNDARY * 2., thickness, 5.),
+            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
+        ));
+    }
+}
+#+end_src
+
+** lib.rs my data types
 #+begin_src rust :tangle src/lib.rs
 #[derive(Encode, Decode, Debug, Clone, Copy)]
 pub struct MyVec3 {
@@ -128,7 +168,7 @@ impl Into<MyVec2> for Vec2 {
 
 #+end_src
 
-** networking packages
+** lib.rs networking packages
 #+begin_src rust :tangle src/lib.rs
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct PositionPackage {
@@ -372,9 +412,8 @@ impl NetComponent {
 }
 #+end_src
 
-
 * server.rs
-** imports
+** server.rs imports
 #+begin_src rust :tangle src/bin/server.rs
 use std::net::{SocketAddr, UdpSocket};
 use std::collections::HashMap;
@@ -409,12 +448,12 @@ struct ReliablePackage {
 }
 #+end_src
 
-** main
+** server.rs main
 #+begin_src rust :tangle src/bin/server.rs
 fn main() {
 #+end_src
 
-*** networking thread
+*** server.rs networking thread
 #+begin_src rust :tangle src/bin/server.rs
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ClientMessage)>();
     let (outgoing_sender, outgoing_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ServerMessage)>();
@@ -472,7 +511,7 @@ fn main() {
 
 #+end_src
 
-*** bevy app
+*** server.rs bevy app
 #+begin_src rust :tangle src/bin/server.rs
     App::new()
         .insert_resource(IncomingReceiver(incoming_receiver))
@@ -502,7 +541,7 @@ fn main() {
 }
 #+end_src
 
-** components and resources
+** server.rs components and resources
 #+begin_src rust :tangle src/bin/server.rs
 
 #[derive(Resource)]
@@ -533,7 +572,7 @@ pub struct UpdateAddress {
 
 #+end_src
 
-** receive messages
+** server.rs receive messages
 #+begin_src rust :tangle src/bin/server.rs
 fn receive_messages(
     incoming_receiver: Res<IncomingReceiver>,
@@ -617,7 +656,7 @@ fn receive_messages(
 
 #+end_src
 
-** send messages
+** server.rs send messages
 #+begin_src rust :tangle src/bin/server.rs
 fn broadcast_player_spawns(
     outgoing_sender: Res<OutgoingSender>,
@@ -789,7 +828,7 @@ fn broadcast_velocities(
 
 #+end_src
 
-** setup
+** server.rs setup
 #+begin_src rust :tangle src/bin/server.rs
 fn setup(
     mut commands: Commands,
@@ -836,48 +875,7 @@ fn setup(
 
 #+end_src
 
-*** spawn walls
-#+begin_src rust :tangle src/bin/server.rs
-const HALF_BOUNDARY: f32 = 1000.0;
-
-fn spawn_walls(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    let mut rng = rand::rng();
-    // + Spawn static boundary colliders
-    let thickness = 10.0;
-    let wall_material = MeshMaterial3d(materials.add(Color::srgb(
-        rng.random_range(0.0..4.0),
-        rng.random_range(0.0..4.0),
-        rng.random_range(0.0..4.0),
-    )));
-    for &pos in &[-HALF_BOUNDARY, HALF_BOUNDARY] {
-        // spawn vertical walls
-        commands.spawn((
-            Mesh3d(meshes.add(Cuboid::new(thickness, HALF_BOUNDARY * 2., 5.))),
-            wall_material.clone(),
-            Transform::from_xyz(pos, 0., 0.),
-            RigidBody::Static,
-            Collider::cuboid(thickness, HALF_BOUNDARY * 2., 5.),
-            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
-        ));
-        // spawn horizontal walls
-        commands.spawn((
-            Mesh3d(meshes.add(Cuboid::new(HALF_BOUNDARY * 2., thickness, 5.))),
-            wall_material.clone(),
-            Transform::from_xyz(0., pos, 0.),
-            RigidBody::Static,
-            Collider::cuboid(HALF_BOUNDARY * 2., thickness, 5.),
-            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
-        ));
-    }
-}
-
-#+end_src
-
-*** spawn enemies
+*** server.rs spawn enemies
 #+begin_src rust :tangle src/bin/server.rs
 fn spawn_enemies(
     mut commands: Commands,
@@ -924,7 +922,7 @@ fn spawn_enemies(
 
 #+end_src
 
-** gameplay
+** server.rs gameplay
 #+begin_src rust :tangle src/bin/server.rs
 fn apply_velocity_system(
     time: Res<Time>,
@@ -954,7 +952,7 @@ fn enemy_kill_system(
 
 
 * client.rs
-** imports
+** client.rs imports
 #+begin_src rust :tangle src/bin/client.rs
 use std::net::UdpSocket;
 use std::collections::HashMap;
@@ -967,7 +965,7 @@ use bevy::{
 use std::f32::consts::FRAC_PI_2;
 #+end_src
 
-** components and resources
+** client.rs components and resources
 #+begin_src rust :tangle src/bin/client.rs
 
 const FOG_COLOR: Color = Color::srgb(0.15, 0.20, 0.30);
@@ -1000,7 +998,7 @@ impl Default for CameraSensitivity {
 
 #+end_src
 
-** client socket
+** client.rs socket
 #+begin_src rust :tangle src/bin/client.rs
 pub struct ClientSocket {
     pub target: String,
@@ -1025,13 +1023,13 @@ impl ClientSocket {
 
 #+end_src
 
-** main
+** clients.rs main
 #+begin_src rust :tangle src/bin/client.rs
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 #+end_src
 
-*** network thread
+*** clients.rs network thread
 #+begin_src rust :tangle src/bin/client.rs
     let server_address = args.get(1).cloned().unwrap_or("127.0.0.1:7878".to_string());
 
@@ -1089,7 +1087,7 @@ fn main() {
 
 #+end_src
 
-*** bevy app
+*** clients.rs bevy app
 #+begin_src rust :tangle src/bin/client.rs
     App::new()
         .insert_resource(IncomingReceiver(incoming_receiver))
@@ -1102,7 +1100,11 @@ fn main() {
         // .add_plugins(EguiPlugin::default())
         // .add_plugins(WorldInspectorPlugin::new())
         .add_plugins(PhysicsPlugins::default())
-        .add_systems(Startup, (setup, cursor_lock))
+        .add_systems(Startup, (
+            setup,
+            spawn_walls,
+            cursor_lock,
+        ))
         .add_systems(Update, (
             receive_messages,
             cursor_position_system,
@@ -1113,7 +1115,7 @@ fn main() {
 }
 #+end_src
 
-** setup spawn walls glb house
+** clients.rs setup spawn glb house
 #+begin_src rust :tangle src/bin/client.rs
 fn setup(
     outgoing_sender: Res<OutgoingSender>,
@@ -1124,36 +1126,6 @@ fn setup(
 ) {
     let login_message = ClientMessage::Login;
     outgoing_sender.0.send(login_message).unwrap();
-
-    let mut rng = rand::rng();
-    // + Spawn static boundary colliders
-    let half_boundary = 3000.0;
-    let thickness = 10.0;
-    let wall_material = MeshMaterial3d(materials.add(Color::srgb(
-        rng.random_range(0.0..4.0),
-        rng.random_range(0.0..4.0),
-        rng.random_range(0.0..4.0),
-    )));
-    for &pos in &[-half_boundary, half_boundary] {
-        // spawn vertical walls
-        commands.spawn((
-            Mesh3d(meshes.add(Cuboid::new(thickness, half_boundary * 2., 5.))),
-            wall_material.clone(),
-            Transform::from_xyz(pos, 0., 0.),
-            RigidBody::Static,
-            Collider::cuboid(thickness, half_boundary * 2., 5.),
-            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
-        ));
-        // spawn horizontal walls
-        commands.spawn((
-            Mesh3d(meshes.add(Cuboid::new(half_boundary * 2., thickness, 5.))),
-            wall_material.clone(),
-            Transform::from_xyz(0., pos, 0.),
-            RigidBody::Static,
-            Collider::cuboid(half_boundary * 2., thickness, 5.),
-            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
-        ));
-    }
 
     commands.spawn((
         SceneRoot(asset_server.load(
@@ -1168,7 +1140,7 @@ fn setup(
 
 #+end_src
 
-** client input
+** clients.rs client input
 #+begin_src rust :tangle src/bin/client.rs
 fn cursor_position_system(
     window: Single<&Window, With<PrimaryWindow>>,
@@ -1252,7 +1224,7 @@ fn rotate_player(
 
 #+end_src
 
-** receive messages
+** clients.rs receive messages
 #+begin_src rust :tangle src/bin/client.rs
 fn receive_messages(
     incoming_receiver: Res<IncomingReceiver>,
@@ -1278,7 +1250,7 @@ fn receive_messages(
                 match message {
 #+end_src
 
-*** spawn update entities
+*** clients.rs spawn update entities
 #+begin_src rust :tangle src/bin/client.rs
                     ServerMessageInner::SpawnEntities(entity_packages) => {
                         for EntityPackage { net_id, components } in entity_packages {
@@ -1336,7 +1308,7 @@ fn receive_messages(
 
 #+end_src
 
-*** spawn player
+*** clients.rs spawn player
 #+begin_src rust :tangle src/bin/client.rs
                             // spawn player
                             let player_radius = 1.5;
@@ -1401,7 +1373,7 @@ fn receive_messages(
                             net_id_map.0.insert(id, net_id);
 #+end_src
 
-*** update positions velocities
+*** clients.rs update positions velocities
 #+begin_src rust :tangle src/bin/client.rs
                         }
                     },
@@ -1441,7 +1413,7 @@ fn receive_messages(
 
 #+end_src
 
-** other
+** clients.rs other
 #+begin_src rust :tangle src/bin/client.rs
 fn cursor_lock(
     mut cursor_options: Single<&mut CursorOptions, With<PrimaryWindow>>,

@@ -43,6 +43,43 @@ pub fn random_position(range: f32) -> Vec2 {
     )
 }
 
+pub const HALF_BOUNDARY: f32 = 1000.0;
+
+pub fn spawn_walls(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let mut rng = rand::rng();
+    // + Spawn static boundary colliders
+    let thickness = 10.0;
+    let wall_material = MeshMaterial3d(materials.add(Color::srgb(
+        rng.random_range(0.0..4.0),
+        rng.random_range(0.0..4.0),
+        rng.random_range(0.0..4.0),
+    )));
+    for &pos in &[-HALF_BOUNDARY, HALF_BOUNDARY] {
+        // spawn vertical walls
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::new(thickness, HALF_BOUNDARY * 2., 5.))),
+            wall_material.clone(),
+            Transform::from_xyz(pos, 0., 0.),
+            RigidBody::Static,
+            Collider::cuboid(thickness, HALF_BOUNDARY * 2., 5.),
+            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
+        ));
+        // spawn horizontal walls
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::new(HALF_BOUNDARY * 2., thickness, 5.))),
+            wall_material.clone(),
+            Transform::from_xyz(0., pos, 0.),
+            RigidBody::Static,
+            Collider::cuboid(HALF_BOUNDARY * 2., thickness, 5.),
+            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
+        ));
+    }
+}
+
 #[derive(Encode, Decode, Debug, Clone, Copy)]
 pub struct MyVec3 {
     x: f32,

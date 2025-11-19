@@ -125,7 +125,11 @@ fn main() {
         // .add_plugins(EguiPlugin::default())
         // .add_plugins(WorldInspectorPlugin::new())
         .add_plugins(PhysicsPlugins::default())
-        .add_systems(Startup, (setup, cursor_lock))
+        .add_systems(Startup, (
+            setup,
+            spawn_walls,
+            cursor_lock,
+        ))
         .add_systems(Update, (
             receive_messages,
             cursor_position_system,
@@ -144,36 +148,6 @@ fn setup(
 ) {
     let login_message = ClientMessage::Login;
     outgoing_sender.0.send(login_message).unwrap();
-
-    let mut rng = rand::rng();
-    // + Spawn static boundary colliders
-    let half_boundary = 3000.0;
-    let thickness = 10.0;
-    let wall_material = MeshMaterial3d(materials.add(Color::srgb(
-        rng.random_range(0.0..4.0),
-        rng.random_range(0.0..4.0),
-        rng.random_range(0.0..4.0),
-    )));
-    for &pos in &[-half_boundary, half_boundary] {
-        // spawn vertical walls
-        commands.spawn((
-            Mesh3d(meshes.add(Cuboid::new(thickness, half_boundary * 2., 5.))),
-            wall_material.clone(),
-            Transform::from_xyz(pos, 0., 0.),
-            RigidBody::Static,
-            Collider::cuboid(thickness, half_boundary * 2., 5.),
-            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
-        ));
-        // spawn horizontal walls
-        commands.spawn((
-            Mesh3d(meshes.add(Cuboid::new(half_boundary * 2., thickness, 5.))),
-            wall_material.clone(),
-            Transform::from_xyz(0., pos, 0.),
-            RigidBody::Static,
-            Collider::cuboid(half_boundary * 2., thickness, 5.),
-            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
-        ));
-    }
 
     commands.spawn((
         SceneRoot(asset_server.load(
