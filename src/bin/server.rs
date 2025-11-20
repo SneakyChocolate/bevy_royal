@@ -154,8 +154,8 @@ fn receive_messages(
     while let Ok((addr, client_message)) = incoming_receiver.0.try_recv() {
         match client_message {
             ClientMessage::Confirm(_) => {},
-            ClientMessage::Login => {
 
+            ClientMessage::Login => {
                 // spawn player
                 let player_radius = 1.5;
                 let id = commands.spawn((
@@ -185,6 +185,7 @@ fn receive_messages(
                     commands.entity(client).insert(PendingSpawn);
                 }
             },
+
             ClientMessage::SetVelocity(player_net_id, velocity) => {
                 let player_entity_option = entity_map.0.get(&player_net_id);
                 let mut player_exists = false;
@@ -201,6 +202,7 @@ fn receive_messages(
                     entity_map.0.remove(&player_net_id);
                 }
             },
+
             ClientMessage::Rotation(player_net_id, rotation) => {
                 let player_entity_option = entity_map.0.get(&player_net_id);
                 let mut player_exists = false;

@@ -178,11 +178,11 @@ fn receive_messages(
     while let Ok((addr, client_message)) = incoming_receiver.0.try_recv() {
         match client_message {
             ClientMessage::Confirm(_) => {},
-            ClientMessage::Login => {
 #+end_src
 
 ** spawn player
 #+begin_src rust
+            ClientMessage::Login => {
                 // spawn player
                 let player_radius = 1.5;
                 let id = commands.spawn((
@@ -212,6 +212,10 @@ fn receive_messages(
                     commands.entity(client).insert(PendingSpawn);
                 }
             },
+#+end_src
+
+** set velocity
+#+begin_src rust
             ClientMessage::SetVelocity(player_net_id, velocity) => {
                 let player_entity_option = entity_map.0.get(&player_net_id);
                 let mut player_exists = false;
@@ -228,6 +232,10 @@ fn receive_messages(
                     entity_map.0.remove(&player_net_id);
                 }
             },
+#+end_src
+
+** set rotation
+#+begin_src rust
             ClientMessage::Rotation(player_net_id, rotation) => {
                 let player_entity_option = entity_map.0.get(&player_net_id);
                 let mut player_exists = false;
@@ -251,6 +259,7 @@ fn receive_messages(
 #+end_src
 
 * send messages
+** broadcast player spawns
 #+begin_src rust
 fn broadcast_player_spawns(
     outgoing_sender: Res<OutgoingSender>,
@@ -286,6 +295,10 @@ fn broadcast_player_spawns(
     }
 }
 
+#+end_src
+
+** broadcast enemy spawns
+#+begin_src rust
 fn broadcast_enemy_spawns(
     outgoing_sender: Res<OutgoingSender>,
     materials: ResMut<Assets<StandardMaterial>>,
@@ -315,6 +328,10 @@ fn broadcast_enemy_spawns(
     }
 }
 
+#+end_src
+
+** distance function for LastBroadcast
+#+begin_src rust
 const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
 const VELOCITY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<VelocityPackage>() as f32).floor() as usize;
 
@@ -340,6 +357,10 @@ fn update_per_distance(
     }
 }
 
+#+end_src
+
+** broadcast positions
+#+begin_src rust
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
@@ -381,6 +402,10 @@ fn broadcast_positions(
     }
 }
 
+#+end_src
+
+** broadcast velocities
+#+begin_src rust
 fn broadcast_velocities(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
