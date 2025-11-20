@@ -1,5 +1,6 @@
 #+title: client.rs
 #+PROPERTY: header-args:rust :tangle ../src/bin/client.rs
+#+auto_tangle: t
 
 * imports
 #+begin_src rust

@@ -273,6 +273,7 @@ pub enum NetComponent {
         scale: MyVec3,
     },
     Sphere(f32),
+    SphereCollider(f32),
     ColorMaterial {
         r: f32,
         g: f32,
@@ -358,6 +359,9 @@ impl NetComponent {
             NetComponent::Sphere(radius) => {
                 entity.insert(Mesh3d(meshes.add(Sphere::new(*radius))));
             },
+            NetComponent::SphereCollider(radius) => {
+                entity.insert(Collider::sphere(enemy_radius)),
+            }
             NetComponent::ColorMaterial { r, g, b } => {
                 entity.insert(MeshMaterial3d(materials.add(Color::srgb(*r, *g, *b))));
             },

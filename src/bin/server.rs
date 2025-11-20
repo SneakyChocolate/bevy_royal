@@ -164,8 +164,9 @@ fn receive_messages(
                     Alive(true),
                     Radius(player_radius),
                     Velocity(Vec3::ZERO),
-                    // LinearVelocity(Vec2::new(-200., 0.)),
+                    // LinearVelocity(Vec2::new(0., 0.)),
                     // RigidBody::Dynamic,
+                    // CollisionLayers::new([Layer::Player], [Layer::Boundary]),
                     Mesh3d(meshes.add(Sphere::new(player_radius))),
                     MeshMaterial3d(materials.add(Color::srgb(0., 1., 0.))),
                     UpdateAddress {addr},
@@ -268,6 +269,7 @@ fn broadcast_enemy_spawns(
             entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
                 (*transform).into(),
                 NetComponent::Sphere(radius.0),
+                NetComponent::SphereCollider(radius.0),
                 (*transform).into(),
                 (*velocity).into(),
                 (materials.get(meshmaterial3d).unwrap().clone()).into(),
