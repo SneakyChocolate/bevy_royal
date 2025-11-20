@@ -261,6 +261,7 @@ pub enum Layer {
     #[default]
     Boundary,
     Ball,
+    Player,
 }
 
 #[derive(Encode, Decode, Debug, Clone)]

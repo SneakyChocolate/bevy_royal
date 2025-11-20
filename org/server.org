@@ -178,6 +178,10 @@ fn receive_messages(
         match client_message {
             ClientMessage::Confirm(_) => {},
             ClientMessage::Login => {
+#+end_src
+
+** spawn player
+#+begin_src rust
                 // spawn player
                 let player_radius = 1.5;
                 let id = commands.spawn((
@@ -187,7 +191,8 @@ fn receive_messages(
                     Radius(player_radius),
                     Velocity(Vec3::ZERO),
                     // LinearVelocity(Vec2::new(-200., 0.)),
-                    // RigidBody::Dynamic,
+                    RigidBody::Dynamic,
+                    CollisionLayers::new([Layer::Player], [Layer::Boundary]),
                     Mesh3d(meshes.add(Sphere::new(player_radius))),
                     MeshMaterial3d(materials.add(Color::srgb(0., 1., 0.))),
                     UpdateAddress {addr},
@@ -453,7 +458,8 @@ fn setup(
 #+begin_src rust
     commands.spawn((
         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
-        CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
+        CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
+        RigidBody::Static,
 
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("fiebigershof.glb"),

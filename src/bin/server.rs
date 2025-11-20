@@ -155,6 +155,7 @@ fn receive_messages(
         match client_message {
             ClientMessage::Confirm(_) => {},
             ClientMessage::Login => {
+
                 // spawn player
                 let player_radius = 1.5;
                 let id = commands.spawn((
@@ -418,7 +419,8 @@ fn setup(
 
     commands.spawn((
         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
-        CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
+        CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
+        RigidBody::Static,
 
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("fiebigershof.glb"),

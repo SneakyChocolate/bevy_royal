@@ -177,7 +177,7 @@ fn player_movement_system(
     outgoing_sender: Res<OutgoingSender>,
     net_id_map: Res<NetIDMap>,
 ) {
-    let speed = 80.0;
+    let speed = 8.0;
 
     for (player_entity, mut velocity, alive, camera_transform) in player_query.iter_mut() {
         let (yaw, _pitch, _roll) = camera_transform.rotation.to_euler(EulerRot::ZXY);
