@@ -360,8 +360,8 @@ impl NetComponent {
                 entity.insert(Mesh3d(meshes.add(Sphere::new(*radius))));
             },
             NetComponent::SphereCollider(radius) => {
-                entity.insert(Collider::sphere(enemy_radius)),
-            }
+                entity.insert(Collider::sphere(*radius));
+            },
             NetComponent::ColorMaterial { r, g, b } => {
                 entity.insert(MeshMaterial3d(materials.add(Color::srgb(*r, *g, *b))));
             },
