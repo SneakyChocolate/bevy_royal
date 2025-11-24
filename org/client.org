@@ -190,7 +190,7 @@ fn setup(
 
 #+end_src
 
-* client input
+* client input player movement
 #+begin_src rust
 fn cursor_position_system(
     window: Single<&Window, With<PrimaryWindow>>,

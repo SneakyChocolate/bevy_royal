@@ -139,6 +139,8 @@ pub struct UpdateAddress {
     addr: SocketAddr,
 }
 
+type PlayerVelocityType = LinearVelocity;
+
 fn receive_messages(
     incoming_receiver: Res<IncomingReceiver>,
     outgoing_sender: Res<OutgoingSender>,
@@ -148,7 +150,7 @@ fn receive_messages(
     mut id_counter: ResMut<IDCounter>,
     mut net_id_map: ResMut<NetIDMap>,
     mut entity_map: ResMut<EntityMap>,
-    mut player_query: Query<(&mut Velocity, &mut Transform), With<Player>>,
+    mut player_query: Query<(&mut PlayerVelocityType, &mut Transform), With<Player>>,
     client_addresses: Query<Entity, With<UpdateAddress>>,
 ) {
     while let Ok((addr, client_message)) = incoming_receiver.0.try_recv() {
@@ -163,10 +165,10 @@ fn receive_messages(
                     Player,
                     Alive(true),
                     Radius(player_radius),
-                    Velocity(Vec3::ZERO),
-                    // LinearVelocity(Vec2::new(0., 0.)),
-                    // RigidBody::Dynamic,
-                    // CollisionLayers::new([Layer::Player], [Layer::Boundary]),
+                    // PlayerVelocityType::new(Vec3::ZERO),
+                    LinearVelocity(Vec3::ZERO),
+                    RigidBody::Dynamic,
+                    CollisionLayers::new([Layer::Player], [Layer::Boundary]),
                     Mesh3d(meshes.add(Sphere::new(player_radius))),
                     MeshMaterial3d(materials.add(Color::srgb(0., 1., 0.))),
                     UpdateAddress {addr},
