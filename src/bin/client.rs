@@ -121,6 +121,7 @@ fn main() {
         .insert_resource(EntityMap::default())
         .insert_resource(NetIDMap::default())
         .insert_resource(Gravity::ZERO)
+        // .insert_resource(Gravity(Vec3::NEG_Z))
         .add_plugins(DefaultPlugins)
         // .add_plugins(EguiPlugin::default())
         // .add_plugins(WorldInspectorPlugin::new())

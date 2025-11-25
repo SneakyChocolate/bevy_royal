@@ -81,7 +81,7 @@ pub fn spawn_walls(
             Transform::from_xyz(pos, 0., 0.),
             RigidBody::Static,
             Collider::cuboid(thickness, HALF_BOUNDARY * 2., 5.),
-            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
+            CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
         ));
         // spawn horizontal walls
         commands.spawn((
@@ -90,7 +90,7 @@ pub fn spawn_walls(
             Transform::from_xyz(0., pos, 0.),
             RigidBody::Static,
             Collider::cuboid(HALF_BOUNDARY * 2., thickness, 5.),
-            CollisionLayers::new([Layer::Boundary], [Layer::Ball]),
+            CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
         ));
     }
 }
