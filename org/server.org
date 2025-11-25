@@ -193,9 +193,11 @@ fn receive_messages(
                     Alive(true),
                     Radius(player_radius),
                     // PlayerVelocityType::new(Vec3::ZERO),
-                    LinearVelocity(Vec3::ZERO),
+                    LinearVelocity(Vec3::new(10., -10., 0.)),
                     RigidBody::Dynamic,
                     CollisionLayers::new([Layer::Player], [Layer::Boundary]),
+                    Collider::sphere(player_radius),
+
                     Mesh3d(meshes.add(Sphere::new(player_radius))),
                     MeshMaterial3d(materials.add(Color::srgb(0., 1., 0.))),
                     UpdateAddress {addr},
@@ -530,12 +532,14 @@ fn spawn_enemies(
             Transform::from_translation(position.extend(enemy_radius)),
             Mesh3d(meshes.add(Sphere::new(enemy_radius))),
             material,
+
             RigidBody::Dynamic,
             Collider::sphere(enemy_radius),
             velocity,
             CollisionLayers::new([Layer::Ball], [Layer::Boundary]),
             Restitution::new(1.0), // Perfect bounce (1.0 = 100% energy retained)
             Friction::ZERO.with_combine_rule(CoefficientCombine::Min), // Remove friction
+
             Enemy,
             Radius(enemy_radius),
             LastBroadcast(HashMap::new()),
