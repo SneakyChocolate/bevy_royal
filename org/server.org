@@ -271,7 +271,7 @@ fn broadcast_player_spawns(
     materials: ResMut<Assets<StandardMaterial>>,
     net_id_map: ResMut<NetIDMap>,
     client_addresses: Query<(Entity, &UpdateAddress), With<PendingSpawn>>,
-    player_query: Query<(Entity, &Transform, &Velocity, &MeshMaterial3d<StandardMaterial>, &Player, &Alive, &Radius)>,
+    player_query: Query<(Entity, &Transform, &PlayerVelocityType, &MeshMaterial3d<StandardMaterial>, &Player, &Alive, &Radius)>,
 ) {
     for (id, addr) in client_addresses.iter() {
         // println!("client spawn");
