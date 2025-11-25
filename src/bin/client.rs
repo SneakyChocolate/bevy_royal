@@ -273,6 +273,12 @@ fn receive_messages(
                                 let mut entity = commands.spawn(( ));
 
                                 for component in components {
+                                    match &component {
+                                        NetComponent::Player => {
+                                            println!("player spawn received");
+                                        }
+                                        _ => {}
+                                    }
                                     component.apply_to(&mut entity, &mut meshes, &mut standard_materials);
                                 }
 
