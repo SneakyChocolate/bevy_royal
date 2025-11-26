@@ -151,6 +151,20 @@ fn setup(
     outgoing_sender.0.send(login_message).unwrap();
 
     commands.spawn((
+        // ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
+        // CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
+        // RigidBody::Static,
+
+        SceneRoot(asset_server.load(
+            GltfAssetLabel::Scene(0).from_asset("maptest.glb"),
+        )),
+        Transform::from_xyz(-10., 10., 3.)
+            .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(30.))
+        ,
+    ));
+
+    commands.spawn((
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("fiebigershof.glb"),
         )),

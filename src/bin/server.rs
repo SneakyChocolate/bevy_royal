@@ -89,7 +89,7 @@ fn main() {
     App::new()
         .insert_resource(IncomingReceiver(incoming_receiver))
         .insert_resource(OutgoingSender(outgoing_sender))
-        .insert_resource(Gravity(Vec3::NEG_Z))
+        .insert_resource(Gravity(Vec3::NEG_Z * 9.))
         // .insert_resource(Gravity::ZERO)
         .insert_resource(IDCounter(0))
         .insert_resource(EntityMap::default())
@@ -428,6 +428,20 @@ fn setup(
         Collider::cuboid(2000., 0.5, 2000.),
         CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
         RigidBody::Static,
+    ));
+
+    commands.spawn((
+        ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
+        CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
+        RigidBody::Static,
+
+        SceneRoot(asset_server.load(
+            GltfAssetLabel::Scene(0).from_asset("maptest.glb"),
+        )),
+        Transform::from_xyz(-10., 10., 3.)
+            .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(30.))
+        ,
     ));
 
     commands.spawn((
