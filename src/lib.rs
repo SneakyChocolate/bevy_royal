@@ -82,9 +82,9 @@ pub fn spawn_walls(
 
 #[derive(Encode, Decode, Debug, Clone, Copy)]
 pub struct MyVec3 {
-    x: f32,
-    y: f32,
-    z: f32,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
 }
 
 impl Into<Vec3> for MyVec3 {
@@ -105,10 +105,10 @@ impl Into<MyVec3> for Vec3 {
 
 #[derive(Encode, Decode, Debug, Clone, Copy)]
 pub struct MyQuat {
-    x: f32,
-    y: f32,
-    z: f32,
-    w: f32,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub w: f32,
 }
 
 impl Into<Quat> for MyQuat {
@@ -130,8 +130,8 @@ impl Into<MyQuat> for Quat {
 
 #[derive(Encode, Decode, Debug, Clone, Copy)]
 pub struct MyVec2 {
-    x: f32,
-    y: f32,
+    pub x: f32,
+    pub y: f32,
 }
 
 impl Into<Vec2> for MyVec2 {

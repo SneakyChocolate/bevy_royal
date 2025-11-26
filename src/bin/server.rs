@@ -161,7 +161,7 @@ fn receive_messages(
                 // spawn player
                 let player_radius = 1.5;
                 let id = commands.spawn((
-                    Transform::from_xyz(0., 0., player_radius),
+                    Transform::from_xyz(0., 0., player_radius + 10.),
                     Player,
                     Alive(true),
                     Radius(player_radius),
@@ -197,7 +197,9 @@ fn receive_messages(
                     Some(player_entity) => {
                         if let Ok((mut player_velocity, _)) = player_query.get_mut(*player_entity) {
                             player_exists = true;
-                            player_velocity.0 = Into::<Vec2>::into(velocity).extend(0.);
+                            player_velocity.0.x = velocity.x;
+                            player_velocity.0.y = velocity.y;
+                            // player_velocity.0 = Into::<Vec2>::into(velocity).extend(0.);
                         }
                     },
                     None => {},
@@ -482,7 +484,7 @@ fn spawn_enemies(
 
         // spawn enemy
         let id = commands.spawn((
-            Transform::from_translation(position.extend(enemy_radius)),
+            Transform::from_translation(position.extend(enemy_radius + 10.)),
             Mesh3d(meshes.add(Sphere::new(enemy_radius))),
             material,
 
