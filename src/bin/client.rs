@@ -41,6 +41,10 @@ pub struct ClientSocket {
     pub socket: UdpSocket,
     pub buf: [u8; 1000],
 }
+struct ReliablePackage {
+    bytes: [u8; 1000],
+    last_send: std::time::Instant,
+}
 
 impl ClientSocket {
     pub fn new(target: String) -> Self {
@@ -70,11 +74,24 @@ fn main() {
         let mut delay_pool: Vec<(f32, ServerMessage)> = Vec::with_capacity(1000);
         let mut past = std::time::Instant::now();
 
+        let mut reliable_counter = 1;
+        let mut reliable_packages = HashMap::<usize, ReliablePackage>::new();
+
         loop {
+
             // delta time
             let present = std::time::Instant::now();
             let delta_secs = present.duration_since(past).as_secs_f32();
             past = present;
+
+            // resend all important messegaes if they werent confirmed yet
+            let now = present;
+            for (_, packet) in reliable_packages.iter_mut() {
+                if now.duration_since(packet.last_send) > std::time::Duration::from_millis(300) {
+                    client_socket.send(&packet.bytes);
+                    packet.last_send = now;
+                }
+            }
 
             // get from game
             while let Ok(outgoing_package) = outgoing_receiver.try_recv() {
@@ -111,6 +128,7 @@ fn main() {
             for server_message in removed {
                 incoming_sender.send(server_message).unwrap();
             }
+
         }
     });
 

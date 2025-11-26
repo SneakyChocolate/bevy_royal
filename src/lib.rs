@@ -7,6 +7,7 @@ pub use bevy::{
     post_process::bloom::{Bloom, BloomCompositeMode},
     prelude::*,
 };
+use std::net::{SocketAddr, UdpSocket};
 
 pub type NetIDType = u128;
 
@@ -78,6 +79,12 @@ pub fn spawn_walls(
             CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
         ));
     }
+}
+
+pub struct ReliablePackage {
+    pub bytes: [u8; 1000],
+    pub addr: SocketAddr,
+    pub last_send: std::time::Instant,
 }
 
 #[derive(Encode, Decode, Debug, Clone, Copy)]

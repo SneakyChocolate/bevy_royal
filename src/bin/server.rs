@@ -24,11 +24,6 @@ impl ServerSocket {
     }
 }
 
-struct ReliablePackage {
-    bytes: [u8; 1000],
-    addr: SocketAddr,
-    last_send: std::time::Instant,
-}
 
 fn main() {
 

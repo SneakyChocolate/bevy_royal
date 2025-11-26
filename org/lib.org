@@ -13,6 +13,7 @@ pub use bevy::{
     post_process::bloom::{Bloom, BloomCompositeMode},
     prelude::*,
 };
+use std::net::{SocketAddr, UdpSocket};
 #+end_src
 
 * components
@@ -98,6 +99,12 @@ pub fn spawn_walls(
 
 * my data types
 #+begin_src rust
+pub struct ReliablePackage {
+    pub bytes: [u8; 1000],
+    pub addr: SocketAddr,
+    pub last_send: std::time::Instant,
+}
+
 #[derive(Encode, Decode, Debug, Clone, Copy)]
 pub struct MyVec3 {
     pub x: f32,

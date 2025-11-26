@@ -56,6 +56,10 @@ fn main() {
         let mut reliable_packages = HashMap::<usize, ReliablePackage>::new();
 
         loop {
+#+end_src
+
+*** resend important messages
+#+begin_src rust
             // resend all important messegaes if they werent confirmed yet
             let now = std::time::Instant::now();
             for (_, packet) in reliable_packages.iter_mut() {
@@ -65,6 +69,10 @@ fn main() {
                 }
             }
 
+#+end_src
+
+*** get messages from game to networking thread
+#+begin_src rust
             // get from game
             while let Ok((addr, mut outgoing_package)) = outgoing_receiver.try_recv() {
                 if outgoing_package.reliable > 0 {
@@ -81,7 +89,10 @@ fn main() {
                 }
                 server_socket.send_to(&bytes, addr);
             }
+#+end_src
 
+*** received confirm so delete from pool
+#+begin_src rust
             // get from socket
             let ServerSocket { socket, buf } = &mut server_socket;
 
@@ -94,6 +105,10 @@ fn main() {
                 }
             }
 
+#+end_src
+
+*** sleep
+#+begin_src rust
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
     });
