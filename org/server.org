@@ -200,6 +200,7 @@ fn receive_messages(
 ** spawn player
 #+begin_src rust
             ClientMessageInner::Login => {
+                println!("login");
                 // spawn player
                 let player_radius = 1.5;
                 let id = commands.spawn((

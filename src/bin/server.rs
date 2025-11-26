@@ -24,6 +24,11 @@ impl ServerSocket {
     }
 }
 
+struct ReliablePackage {
+    bytes: [u8; 1000],
+    addr: SocketAddr,
+    last_send: std::time::Instant,
+}
 
 fn main() {
 
@@ -39,6 +44,7 @@ fn main() {
         let mut reliable_packages = HashMap::<usize, ReliablePackage>::new();
 
         loop {
+
             // resend all important messegaes if they werent confirmed yet
             let now = std::time::Instant::now();
             for (_, packet) in reliable_packages.iter_mut() {
@@ -153,6 +159,7 @@ fn receive_messages(
             ClientMessageInner::Confirm(_) => {},
 
             ClientMessageInner::Login => {
+                println!("login");
                 // spawn player
                 let player_radius = 1.5;
                 let id = commands.spawn((
