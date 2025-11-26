@@ -74,11 +74,11 @@ fn main() {
             let ServerSocket { socket, buf } = &mut server_socket;
 
             while let Ok((len, addr)) = socket.recv_from(buf) {
-                if let Some(client_message) = ClientMessage::decode(&buf[..len]) {
-                    if let ClientMessage::Confirm(reliable) = &client_message {
+                if let Some(ClientMessage {reliable, message: client_message}) = ClientMessage::decode(&buf[..len]) {
+                    if let ClientMessageInner::Confirm(reliable) = &client_message {
                         reliable_packages.remove(reliable);
                     }
-                    incoming_sender.send((addr, client_message)).unwrap();
+                    incoming_sender.send((addr, ClientMessage {reliable, message: client_message})).unwrap();
                 }
             }
 
@@ -153,11 +153,11 @@ fn receive_messages(
     mut player_query: Query<(&mut PlayerVelocityType, &mut Transform), With<Player>>,
     client_addresses: Query<Entity, With<UpdateAddress>>,
 ) {
-    while let Ok((addr, client_message)) = incoming_receiver.0.try_recv() {
+    while let Ok((addr, ClientMessage {reliable, message: client_message})) = incoming_receiver.0.try_recv() {
         match client_message {
-            ClientMessage::Confirm(_) => {},
+            ClientMessageInner::Confirm(_) => {},
 
-            ClientMessage::Login => {
+            ClientMessageInner::Login => {
                 // spawn player
                 let player_radius = 1.5;
                 let id = commands.spawn((
@@ -190,7 +190,7 @@ fn receive_messages(
                 }
             },
 
-            ClientMessage::SetVelocity(player_net_id, velocity) => {
+            ClientMessageInner::SetVelocity(player_net_id, velocity) => {
                 let player_entity_option = entity_map.0.get(&player_net_id);
                 let mut player_exists = false;
                 match player_entity_option {
@@ -209,7 +209,7 @@ fn receive_messages(
                 }
             },
 
-            ClientMessage::Rotation(player_net_id, rotation) => {
+            ClientMessageInner::Rotation(player_net_id, rotation) => {
                 let player_entity_option = entity_map.0.get(&player_net_id);
                 let mut player_exists = false;
                 match player_entity_option {

@@ -147,7 +147,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    let login_message = ClientMessage::Login;
+    let login_message = ClientMessage::login();
     outgoing_sender.0.send(login_message).unwrap();
 
     commands.spawn((
@@ -222,7 +222,7 @@ fn player_movement_system(
         }
 
         let net_id = net_id_map.0.get(&player_entity).unwrap();
-        outgoing_sender.0.send(ClientMessage::SetVelocity(*net_id, velocity.0.truncate().into())).unwrap();
+        outgoing_sender.0.send(ClientMessage::setvelocity(*net_id, velocity.0.truncate().into())).unwrap();
     }
 }
 
@@ -251,7 +251,7 @@ fn rotate_player(
         transform.rotation = new_rotation;
 
         let net_id = net_id_map.0.get(&player_entity).unwrap();
-        outgoing_sender.0.send(ClientMessage::Rotation(*net_id, new_rotation.into())).unwrap();
+        outgoing_sender.0.send(ClientMessage::rotation(*net_id, new_rotation.into())).unwrap();
     }
 }
 
@@ -274,7 +274,7 @@ fn receive_messages(
                 message,
             }) => {
                 if reliable > 0 {
-                    outgoing_sender.0.send(ClientMessage::Confirm(reliable));
+                    outgoing_sender.0.send(ClientMessage::confirm(reliable));
                 }
                 match message {
 
