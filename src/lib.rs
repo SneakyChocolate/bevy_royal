@@ -249,7 +249,7 @@ pub struct ClientMessage {
 impl ClientMessage {
     pub fn login() -> Self {
         Self {
-            reliable: 1,
+            reliable: 0,
             message: ClientMessageInner::Login,
         }
     }
