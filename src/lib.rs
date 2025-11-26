@@ -81,12 +81,6 @@ pub fn spawn_walls(
     }
 }
 
-pub struct ReliablePackage {
-    pub bytes: [u8; 1000],
-    pub addr: SocketAddr,
-    pub last_send: std::time::Instant,
-}
-
 #[derive(Encode, Decode, Debug, Clone, Copy)]
 pub struct MyVec3 {
     pub x: f32,
@@ -189,6 +183,12 @@ impl ServerMessage {
             message: ServerMessageInner::Ok(net_id),
         }
     }
+    pub fn confirm(id: usize) -> Self {
+        Self {
+            reliable: 1,
+            message: ServerMessageInner::Confirm(id),
+        }
+    }
     pub fn spawn_entities(reliable: usize, packages: Vec<EntityPackage>) -> Self {
         Self {
             reliable,
@@ -222,6 +222,7 @@ pub enum ServerMessageInner {
     UpdateEntities(Vec<EntityPackage>),
     UpdatePositions(Vec<PositionPackage>),
     UpdateVelocities(Vec<VelocityPackage>),
+    Confirm(usize),
 }
 
 impl ServerMessage {

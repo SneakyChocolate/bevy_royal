@@ -94,8 +94,18 @@ fn main() {
             }
 
             // get from game
-            while let Ok(outgoing_package) = outgoing_receiver.try_recv() {
+            while let Ok(mut outgoing_package) = outgoing_receiver.try_recv() {
+                if outgoing_package.reliable > 0 {
+                    outgoing_package.reliable = reliable_counter;
+                }
                 let bytes = outgoing_package.encode();
+                if outgoing_package.reliable > 0 {
+                    reliable_packages.insert(reliable_counter, ReliablePackage {
+                        bytes,
+                        last_send: now,
+                    });
+                    reliable_counter += 1;
+                }
                 client_socket.send(&bytes);
             }
 
@@ -103,9 +113,12 @@ fn main() {
             let ClientSocket { socket, buf, target: _ } = &mut client_socket;
 
             while let Ok((len, _addr)) = socket.recv_from(buf) {
-                if let Some(server_message) = ServerMessage::decode(&buf[..len]) {
+                if let Some(ServerMessage {reliable, message: server_message}) = ServerMessage::decode(&buf[..len]) {
+                    if let ServerMessageInner::Confirm(reliable) = &server_message {
+                        reliable_packages.remove(reliable);
+                    }
                     // incoming_sender.send(server_message);
-                    delay_pool.push((0.0, server_message));
+                    delay_pool.push((0.0, ServerMessage {reliable, message: server_message}));
                 }
                 else {
                     println!("got something that couldnt be decoded");
@@ -295,6 +308,7 @@ fn receive_messages(
                     outgoing_sender.0.send(ClientMessage::confirm(reliable));
                 }
                 match message {
+                    ServerMessageInner::Confirm(_) => {},
 
                     ServerMessageInner::SpawnEntities(entity_packages) => {
                         for EntityPackage { net_id, components } in entity_packages {

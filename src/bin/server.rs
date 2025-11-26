@@ -155,6 +155,9 @@ fn receive_messages(
     client_addresses: Query<Entity, With<UpdateAddress>>,
 ) {
     while let Ok((addr, ClientMessage {reliable, message: client_message})) = incoming_receiver.0.try_recv() {
+        if reliable > 0 {
+            outgoing_sender.0.send((addr, ServerMessage::confirm(reliable)));
+        }
         match client_message {
             ClientMessageInner::Confirm(_) => {},
 
