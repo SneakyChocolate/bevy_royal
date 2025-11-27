@@ -299,6 +299,7 @@ fn receive_messages(
     mut net_id_map: ResMut<NetIDMap>,
     mut transform_query: Query<(Entity, &mut Transform, Has<Controlled>)>,
     mut velocity_query: Query<(Entity, &mut LinearVelocity, Has<Controlled>)>,
+    mut alive_query: Query<(Entity, &mut Alive)>,
 ) {
 
     loop {
@@ -311,6 +312,7 @@ fn receive_messages(
                     outgoing_sender.0.send(ClientMessage::confirm(reliable));
                 }
                 match message {
+
                     ServerMessageInner::Confirm(_) => {},
 
                     ServerMessageInner::SpawnEntities(entity_packages) => {
@@ -428,9 +430,9 @@ fn receive_messages(
 
                             entity_map.0.insert(net_id, id);
                             net_id_map.0.insert(id, net_id);
-
                         }
                     },
+
                     ServerMessageInner::UpdatePositions(position_packages) => {
                         for position_package in position_packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
@@ -443,6 +445,7 @@ fn receive_messages(
                             }
                         }
                     },
+
                     ServerMessageInner::UpdateVelocities(velocity_packages) => {
                         for package in velocity_packages {
                             if let Some(entity) = entity_map.0.get(&package.net_id) {
@@ -454,6 +457,17 @@ fn receive_messages(
                             }
                         }
                     },
+
+                    ServerMessageInner::UpdateAlives(packages) => {
+                        for package in packages {
+                            if let Some(entity) = entity_map.0.get(&package.net_id) {
+                                if let Ok((_, mut alive)) = alive_query.get_mut(*entity) {
+                                    alive.0 = package.alive;
+                                }
+                            }
+                        }
+                    },
+
                 }
             }
             Err(e) => match e {

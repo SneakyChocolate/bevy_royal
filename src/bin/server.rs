@@ -110,6 +110,7 @@ fn main() {
             broadcast_player_spawns,
             broadcast_positions,
             broadcast_velocities,
+            broadcast_alive,
         ))
         .run();
 }
@@ -318,6 +319,7 @@ fn broadcast_enemy_spawns(
 
 const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
 const VELOCITY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<VelocityPackage>() as f32).floor() as usize;
+const ALIVE_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<AlivePackage>() as f32).floor() as usize;
 
 fn update_per_distance(
     addr: SocketAddr,
@@ -338,6 +340,41 @@ fn update_per_distance(
     }
     else {
         false
+    }
+}
+
+fn broadcast_alive(
+    outgoing_sender: Res<OutgoingSender>,
+    client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
+    mut query: Query<(Entity, &Alive), Changed<Alive>>,
+    net_id_map: ResMut<NetIDMap>,
+    time: Res<Time>,
+) {
+    let delta_secs = time.delta_secs();
+
+    // Process each client separately
+    for (_entity, addr, player_transform) in client_addresses.iter() {
+        let player_pos = player_transform.translation;
+
+        // Collect enemies within radius for this specific player
+        let nearby_entities: Vec<AlivePackage> = query
+            .iter_mut()
+            .filter_map(|(entity, entity_alive)| {
+                let net_id = net_id_map.0.get(&entity)?;
+
+                println!("sending alive update");
+                Some(AlivePackage {
+                    net_id: *net_id,
+                    alive: entity_alive.0,
+                })
+            })
+            .collect();
+
+        // Split into chunks and send
+        for chunk in nearby_entities.chunks(ALIVE_PACKAGES_PER_MESSAGE) {
+            let message = ServerMessage::update_alives(chunk.to_vec());
+            outgoing_sender.0.send((addr.addr, message)).unwrap();
+        }
     }
 }
 

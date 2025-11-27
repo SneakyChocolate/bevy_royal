@@ -164,6 +164,12 @@ pub struct VelocityPackage {
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
+pub struct AlivePackage {
+    pub net_id: NetIDType,
+    pub alive: bool,
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
 pub struct EntityPackage {
     pub net_id: NetIDType,
     pub components: Vec<NetComponent>,
@@ -187,6 +193,12 @@ impl ServerMessage {
         Self {
             reliable: 1,
             message: ServerMessageInner::Confirm(id),
+        }
+    }
+    pub fn update_alives(packages: Vec<AlivePackage>) -> Self {
+        Self {
+            reliable: 1,
+            message: ServerMessageInner::UpdateAlives(packages),
         }
     }
     pub fn spawn_entities(reliable: usize, packages: Vec<EntityPackage>) -> Self {
@@ -222,6 +234,7 @@ pub enum ServerMessageInner {
     UpdateEntities(Vec<EntityPackage>),
     UpdatePositions(Vec<PositionPackage>),
     UpdateVelocities(Vec<VelocityPackage>),
+    UpdateAlives(Vec<AlivePackage>),
     Confirm(usize),
 }
 
