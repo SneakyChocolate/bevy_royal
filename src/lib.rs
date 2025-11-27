@@ -259,6 +259,12 @@ impl ClientMessage {
             message: ClientMessageInner::SetVelocity(me, velocity),
         }
     }
+    pub fn jump(me: NetIDType) -> Self {
+        Self {
+            reliable: 1,
+            message: ClientMessageInner::Jump(me),
+        }
+    }
     pub fn rotation(me: NetIDType, rotation: MyQuat) -> Self {
         Self {
             reliable: 0,
@@ -279,7 +285,8 @@ pub enum ClientMessageInner {
     SetVelocity(NetIDType, MyVec2),
     Rotation(NetIDType, MyQuat),
     // confirm an important message from the server, so the server doesnt resend (tcp immitation)
-    Confirm(usize), 
+    Confirm(usize),
+    Jump(NetIDType),
 }
 
 impl ClientMessage {

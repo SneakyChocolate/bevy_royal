@@ -192,6 +192,10 @@ pub struct EntityPackage {
     pub components: Vec<NetComponent>,
 }
 
+#+end_src
+
+** server message
+#+begin_src rust
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct ServerMessage {
     // 0 means not reliable, otherwise put id so that it can be confirmed, in bevy just put 1 and the network thread will automatically assign
@@ -263,6 +267,10 @@ impl ServerMessage {
     }
 }
 
+#+end_src
+
+** client message
+#+begin_src rust
 #[derive(Encode, Decode, Debug)]
 pub struct ClientMessage {
     pub reliable: usize,
@@ -280,6 +288,12 @@ impl ClientMessage {
         Self {
             reliable: 0,
             message: ClientMessageInner::SetVelocity(me, velocity),
+        }
+    }
+    pub fn jump(me: NetIDType) -> Self {
+        Self {
+            reliable: 1,
+            message: ClientMessageInner::Jump(me),
         }
     }
     pub fn rotation(me: NetIDType, rotation: MyQuat) -> Self {
@@ -302,7 +316,8 @@ pub enum ClientMessageInner {
     SetVelocity(NetIDType, MyVec2),
     Rotation(NetIDType, MyQuat),
     // confirm an important message from the server, so the server doesnt resend (tcp immitation)
-    Confirm(usize), 
+    Confirm(usize),
+    Jump(NetIDType),
 }
 
 impl ClientMessage {
@@ -320,6 +335,10 @@ impl ClientMessage {
     }
 }
 
+#+end_src
+
+** physics collision layer
+#+begin_src rust
 // Define collision layers
 #[derive(PhysicsLayer, Clone, Copy, Debug, Default)]
 pub enum Layer {
@@ -329,6 +348,10 @@ pub enum Layer {
     Player,
 }
 
+#+end_src
+
+** net component
+#+begin_src rust
 #[derive(Encode, Decode, Debug, Clone)]
 pub enum NetComponent {
     LinearVelocity(MyVec3),

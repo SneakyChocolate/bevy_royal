@@ -294,6 +294,7 @@ fn player_movement_system(
         let forward_2d = Vec2::new(forward.x, forward.y).normalize_or_zero();
 
         let right_2d = Vec2::new(-forward_2d.y, forward_2d.x);
+        let net_id = net_id_map.0.get(&player_entity).unwrap();
 
         if alive.0 {
             let mut dir = Vec2::ZERO;
@@ -302,6 +303,9 @@ fn player_movement_system(
             if keyboard.pressed(KeyCode::KeyS) { dir -= forward_2d; }
             if keyboard.pressed(KeyCode::KeyA) { dir += right_2d; }
             if keyboard.pressed(KeyCode::KeyD) { dir -= right_2d; }
+            if keyboard.pressed(KeyCode::Space) {
+                outgoing_sender.0.send(ClientMessage::jump(*net_id)).unwrap();
+            }
 
             if dir.length_squared() > 0.0 {
                 dir = dir.normalize();
@@ -312,7 +316,6 @@ fn player_movement_system(
             velocity.0 = Vec3::ZERO;
         }
 
-        let net_id = net_id_map.0.get(&player_entity).unwrap();
         outgoing_sender.0.send(ClientMessage::setvelocity(*net_id, velocity.0.truncate().into())).unwrap();
     }
 }
@@ -458,8 +461,8 @@ fn receive_messages(
                                         DistanceFog {
                                             color: FOG_COLOR,
                                             falloff: FogFalloff::Linear {
-                                                start: player_radius * 10.,
-                                                end: player_radius * 100.,
+                                                start: player_radius * 100.,
+                                                end: player_radius * 300.,
                                             },
                                             ..default()
                                         },

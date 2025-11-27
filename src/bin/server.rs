@@ -159,6 +159,7 @@ fn receive_messages(
             outgoing_sender.0.send((addr, ServerMessage::confirm(reliable)));
         }
         match client_message {
+
             ClientMessageInner::Confirm(_) => {},
 
             ClientMessageInner::Login => {
@@ -214,6 +215,23 @@ fn receive_messages(
                 }
             },
 
+            ClientMessageInner::Jump(player_net_id) => {
+                let player_entity_option = entity_map.0.get(&player_net_id);
+                let mut player_exists = false;
+                match player_entity_option {
+                    Some(player_entity) => {
+                        if let Ok((mut player_velocity, _)) = player_query.get_mut(*player_entity) {
+                            player_exists = true;
+                            player_velocity.0.z = 10.;
+                        }
+                    },
+                    None => {},
+                }
+                if !player_exists {
+                    entity_map.0.remove(&player_net_id);
+                }
+            },
+
             ClientMessageInner::Rotation(player_net_id, rotation) => {
                 let player_entity_option = entity_map.0.get(&player_net_id);
                 let mut player_exists = false;
@@ -229,7 +247,8 @@ fn receive_messages(
                 if !player_exists {
                     entity_map.0.remove(&player_net_id);
                 }
-            }
+            },
+
         }
     }
 }
