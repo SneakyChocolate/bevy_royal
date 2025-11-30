@@ -503,24 +503,19 @@ fn cursor_lock(
     cursor_options.visible = false;
 }
 
-// TEMP
-fn print_alive_count(
-    q: Query<&Alive>,
-) {
-    let mut count = 0;
-    for alive in q.iter() {
-        if alive.0 {
-            count += 1;
-        }
-    }
-    println!("alive count: {count}");
-}
-
 fn update_dead_color(
     mats: Res<PlayerMaterials>,
-    mut q: Query<(&mut MeshMaterial3d<StandardMaterial>, &Alive), (With<Player>, Changed<Alive>)>,
+    mut q: Query<(
+        &mut MeshMaterial3d<StandardMaterial>,
+        &Alive,
+    ), (
+        With<Player>,
+        // Changed<Alive>,
+    )>,
 ) {
+    let mut count = 0;
     for (mut mat, alive) in &mut q {
+        count += 1;
         if alive.0 {
             mat.0 = mats.normal.clone();
         }
@@ -528,4 +523,5 @@ fn update_dead_color(
             mat.0 = mats.destroyed.clone();
         }
     }
+    println!("alive count: {count}");
 }
