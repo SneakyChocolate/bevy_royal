@@ -2,7 +2,8 @@
 #+PROPERTY: header-args :tangle ../src/lib.rs
 #+auto_tangle: t
 
-* imports
+* lib.rs
+** imports
 #+begin_src rust
 pub use avian3d::prelude::*;
 use bincode::{Decode, Encode};
@@ -16,7 +17,7 @@ pub use bevy::{
 use std::net::{SocketAddr, UdpSocket};
 #+end_src
 
-* components
+** components
 #+begin_src rust
 pub type NetIDType = u128;
 
@@ -39,7 +40,7 @@ pub struct Alive(pub bool);
 pub struct Enemy;
 #+end_src
 
-* random functions
+** random functions
 #+begin_src rust
 pub fn random_velocity(min: f32, max: f32) -> Vec3 {
     let mut rng = rand::rng();
@@ -57,7 +58,7 @@ pub fn random_position(range: f32) -> Vec2 {
 }
 #+end_src
 
-* spawn walls
+** spawn walls
 #+begin_src rust
 pub const HALF_BOUNDARY: f32 = 1000.0;
 
@@ -97,7 +98,7 @@ pub fn spawn_walls(
 }
 #+end_src
 
-* my data types
+** my data types
 #+begin_src rust
 
 #[derive(Encode, Decode, Debug, Clone, Copy)]
@@ -171,7 +172,7 @@ impl Into<MyVec2> for Vec2 {
 
 #+end_src
 
-* networking packages
+** networking packages
 #+begin_src rust
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct PositionPackage {
@@ -200,8 +201,8 @@ pub struct EntityPackage {
 
 #+end_src
 
-* messages
-** server message
+** messages
+*** server message
 #+begin_src rust
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct ServerMessage {
@@ -283,7 +284,7 @@ impl ServerMessage {
 
 #+end_src
 
-** client message
+*** client message
 #+begin_src rust
 #[derive(Encode, Decode, Debug)]
 pub struct ClientMessage {
@@ -351,7 +352,7 @@ impl ClientMessage {
 
 #+end_src
 
-** physics collision layer
+*** physics collision layer
 #+begin_src rust
 // Define collision layers
 #[derive(PhysicsLayer, Clone, Copy, Debug, Default)]
@@ -364,7 +365,7 @@ pub enum Layer {
 
 #+end_src
 
-** net component
+*** net component
 #+begin_src rust
 #[derive(Encode, Decode, Debug, Clone)]
 pub enum NetComponent {
@@ -497,4 +498,3 @@ impl NetComponent {
     }
 }
 #+end_src
-

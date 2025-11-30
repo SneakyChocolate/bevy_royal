@@ -2,7 +2,8 @@
 #+PROPERTY: header-args:rust :tangle ../src/bin/client.rs
 #+auto_tangle: t
 
-* imports
+* client.rs
+** imports
 #+begin_src rust
 use std::net::UdpSocket;
 use std::collections::HashMap;
@@ -15,7 +16,7 @@ use bevy::{
 use std::f32::consts::FRAC_PI_2;
 #+end_src
 
-* components and resources
+** components and resources
 #+begin_src rust
 
 const FOG_COLOR: Color = Color::srgb(0.15, 0.20, 0.30);
@@ -48,7 +49,7 @@ impl Default for CameraSensitivity {
 
 #+end_src
 
-* socket
+** socket
 #+begin_src rust
 pub struct ClientSocket {
     pub target: String,
@@ -77,13 +78,13 @@ impl ClientSocket {
 
 #+end_src
 
-* main
+** main
 #+begin_src rust
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 #+end_src
 
-** network thread
+*** network thread
 #+begin_src rust
     let server_address = args.get(1).cloned().unwrap_or("127.0.0.1:7878".to_string());
 
@@ -101,7 +102,7 @@ fn main() {
         loop {
 #+end_src
 
-*** delta time
+**** delta time
 #+begin_src rust
             // delta time
             let present = std::time::Instant::now();
@@ -110,7 +111,7 @@ fn main() {
 
 #+end_src
 
-*** resend important messages
+**** resend important messages
 #+begin_src rust
             // resend all important messegaes if they werent confirmed yet
             let now = present;
@@ -122,7 +123,7 @@ fn main() {
             }
 #+end_src
 
-*** get from game
+**** get from game
 #+begin_src rust
             // get from game
             while let Ok(mut outgoing_package) = outgoing_receiver.try_recv() {
@@ -142,7 +143,7 @@ fn main() {
 
 #+end_src
 
-*** get from socket
+**** get from socket
 #+begin_src rust
             // get from socket
             let ClientSocket { socket, buf, target: _ } = &mut client_socket;
@@ -162,7 +163,7 @@ fn main() {
 
 #+end_src
 
-*** delay pool
+**** delay pool
 #+begin_src rust
             // go through delay pool
             let mut removed = Vec::<ServerMessage>::new();
@@ -182,14 +183,14 @@ fn main() {
             }
 #+end_src
 
-*** .
+**** .
 #+begin_src rust
         }
     });
 
 #+end_src
 
-** bevy app
+*** bevy app
 #+begin_src rust
     App::new()
         .insert_resource(IncomingReceiver(incoming_receiver))
@@ -218,7 +219,7 @@ fn main() {
 }
 #+end_src
 
-* setup
+** setup
 #+begin_src rust
 fn setup(
     outgoing_sender: Res<OutgoingSender>,
@@ -232,7 +233,7 @@ fn setup(
 
 #+end_src
 
-** spawn glb map ground floor
+*** spawn glb map ground floor
 #+begin_src rust
     commands.spawn((
         // ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
@@ -249,7 +250,7 @@ fn setup(
     ));
 #+end_src
 
-** spawn glb house
+*** spawn glb house
 #+begin_src rust
     commands.spawn((
         SceneRoot(asset_server.load(
@@ -264,7 +265,7 @@ fn setup(
 
 #+end_src
 
-* client input player movement speed
+** client input player movement speed
 #+begin_src rust
 fn cursor_position_system(
     window: Single<&Window, With<PrimaryWindow>>,
@@ -351,8 +352,8 @@ fn rotate_player(
 
 #+end_src
 
-* receive messages
-** parameter
+** receive messages
+*** parameter
 #+begin_src rust
 fn receive_messages(
     incoming_receiver: Res<IncomingReceiver>,
@@ -373,18 +374,22 @@ fn receive_messages(
                 reliable,
                 message,
             }) => {
+#+end_src
+
+*** send confirm
+#+begin_src rust
                 if reliable > 0 {
                     outgoing_sender.0.send(ClientMessage::confirm(reliable));
                 }
                 match message {
 #+end_src
 
-** confirm
+*** confirm
 #+begin_src rust
                     ServerMessageInner::Confirm(_) => {},
 #+end_src
 
-** spawn update entities
+*** spawn update entities
 #+begin_src rust
                     ServerMessageInner::SpawnEntities(entity_packages) => {
                         for EntityPackage { net_id, components } in entity_packages {
@@ -442,7 +447,7 @@ fn receive_messages(
 
 #+end_src
 
-** spawn player
+*** spawn player
 #+begin_src rust
                             // spawn player
                             let player_radius = 1.5;
@@ -509,7 +514,7 @@ fn receive_messages(
                     },
 #+end_src
 
-** update positions
+*** update positions
 #+begin_src rust
                     ServerMessageInner::UpdatePositions(position_packages) => {
                         for position_package in position_packages {
@@ -525,7 +530,7 @@ fn receive_messages(
                     },
 #+end_src
 
-** update velocities
+*** update velocities
 #+begin_src rust
                     ServerMessageInner::UpdateVelocities(velocity_packages) => {
                         for package in velocity_packages {
@@ -540,7 +545,7 @@ fn receive_messages(
                     },
 #+end_src
 
-** update alives
+*** update alives
 #+begin_src rust
                     ServerMessageInner::UpdateAlives(packages) => {
                         for package in packages {
@@ -553,7 +558,7 @@ fn receive_messages(
                     },
 #+end_src
 
-** .
+*** .
 #+begin_src rust
                 }
             }
@@ -568,7 +573,7 @@ fn receive_messages(
 
 #+end_src
 
-* other
+** other
 #+begin_src rust
 fn cursor_lock(
     mut cursor_options: Single<&mut CursorOptions, With<PrimaryWindow>>,

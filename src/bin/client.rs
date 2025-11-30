@@ -308,6 +308,7 @@ fn receive_messages(
                 reliable,
                 message,
             }) => {
+
                 if reliable > 0 {
                     outgoing_sender.0.send(ClientMessage::confirm(reliable));
                 }

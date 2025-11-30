@@ -127,6 +127,9 @@ struct NetIDMap(HashMap<Entity, NetIDType>);
 #[derive(Resource, Default)]
 struct EntityMap(HashMap<NetIDType, Entity>);
 
+#[derive(Resource, Default)]
+struct ClientPlayerMap(HashMap<SocketAddr, Entity>);
+
 #[derive(Resource)]
 struct IDCounter(pub NetIDType);
 
@@ -156,6 +159,7 @@ fn receive_messages(
     client_addresses: Query<Entity, With<UpdateAddress>>,
 ) {
     while let Ok((addr, ClientMessage {reliable, message: client_message})) = incoming_receiver.0.try_recv() {
+
         if reliable > 0 {
             outgoing_sender.0.send((addr, ServerMessage::confirm(reliable)));
         }

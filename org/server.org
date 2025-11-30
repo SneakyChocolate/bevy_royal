@@ -2,7 +2,8 @@
 #+PROPERTY: header-args :tangle ../src/bin/server.rs
 #+auto_tangle: t
 
-* imports
+* server.rs
+** imports
 #+begin_src rust
 use std::net::{SocketAddr, UdpSocket};
 use std::collections::HashMap;
@@ -37,12 +38,12 @@ struct ReliablePackage {
 }
 #+end_src
 
-* main
+** main
 #+begin_src rust
 fn main() {
 #+end_src
 
-** networking thread
+*** networking thread
 #+begin_src rust
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ClientMessage)>();
     let (outgoing_sender, outgoing_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ServerMessage)>();
@@ -58,7 +59,7 @@ fn main() {
         loop {
 #+end_src
 
-*** resend important messages
+**** resend important messages
 #+begin_src rust
             // resend all important messegaes if they werent confirmed yet
             let now = std::time::Instant::now();
@@ -71,7 +72,7 @@ fn main() {
 
 #+end_src
 
-*** get messages from game to networking thread
+**** get messages from game to networking thread
 #+begin_src rust
             // get from game
             while let Ok((addr, mut outgoing_package)) = outgoing_receiver.try_recv() {
@@ -91,7 +92,7 @@ fn main() {
             }
 #+end_src
 
-*** received confirm so delete from pool
+**** received confirm so delete from pool
 #+begin_src rust
             // get from socket
             let ServerSocket { socket, buf } = &mut server_socket;
@@ -107,7 +108,7 @@ fn main() {
 
 #+end_src
 
-*** sleep
+**** sleep
 #+begin_src rust
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
@@ -115,7 +116,7 @@ fn main() {
 
 #+end_src
 
-** bevy app
+*** bevy app
 #+begin_src rust
     App::new()
         .insert_resource(IncomingReceiver(incoming_receiver))
@@ -146,7 +147,7 @@ fn main() {
 }
 #+end_src
 
-* components and resources
+** components and resources
 #+begin_src rust
 
 #[derive(Resource)]
@@ -160,6 +161,9 @@ struct NetIDMap(HashMap<Entity, NetIDType>);
 
 #[derive(Resource, Default)]
 struct EntityMap(HashMap<NetIDType, Entity>);
+
+#[derive(Resource, Default)]
+struct ClientPlayerMap(HashMap<SocketAddr, Entity>);
 
 #[derive(Resource)]
 struct IDCounter(pub NetIDType);
@@ -177,8 +181,8 @@ pub struct UpdateAddress {
 
 #+end_src
 
-* receive messages
-** parameters
+** receive messages
+*** parameters
 #+begin_src rust
 type PlayerVelocityType = LinearVelocity;
 
@@ -195,18 +199,22 @@ fn receive_messages(
     client_addresses: Query<Entity, With<UpdateAddress>>,
 ) {
     while let Ok((addr, ClientMessage {reliable, message: client_message})) = incoming_receiver.0.try_recv() {
+#+end_src
+
+*** send confirm
+#+begin_src rust
         if reliable > 0 {
             outgoing_sender.0.send((addr, ServerMessage::confirm(reliable)));
         }
         match client_message {
 #+end_src
 
-** confirm
+*** confirm
 #+begin_src rust
             ClientMessageInner::Confirm(_) => {},
 #+end_src
 
-** spawn player
+*** spawn player login
 #+begin_src rust
             ClientMessageInner::Login => {
                 println!("login");
@@ -243,7 +251,7 @@ fn receive_messages(
             },
 #+end_src
 
-** set velocity
+*** set velocity
 #+begin_src rust
             ClientMessageInner::SetVelocity(player_net_id, velocity) => {
                 let player_entity_option = entity_map.0.get(&player_net_id);
@@ -265,7 +273,7 @@ fn receive_messages(
             },
 #+end_src
 
-** jump
+*** jump
 #+begin_src rust
             ClientMessageInner::Jump(player_net_id) => {
                 let player_entity_option = entity_map.0.get(&player_net_id);
@@ -285,7 +293,7 @@ fn receive_messages(
             },
 #+end_src
 
-** set rotation
+*** set rotation
 #+begin_src rust
             ClientMessageInner::Rotation(player_net_id, rotation) => {
                 let player_entity_option = entity_map.0.get(&player_net_id);
@@ -305,7 +313,7 @@ fn receive_messages(
             },
 #+end_src
 
-** .
+*** .
 #+begin_src rust
         }
     }
@@ -313,8 +321,8 @@ fn receive_messages(
 
 #+end_src
 
-* send messages
-** broadcast player spawns
+** send messages
+*** broadcast player spawns
 #+begin_src rust
 fn broadcast_player_spawns(
     outgoing_sender: Res<OutgoingSender>,
@@ -352,7 +360,7 @@ fn broadcast_player_spawns(
 
 #+end_src
 
-** broadcast enemy spawns
+*** broadcast enemy spawns
 #+begin_src rust
 fn broadcast_enemy_spawns(
     outgoing_sender: Res<OutgoingSender>,
@@ -385,7 +393,7 @@ fn broadcast_enemy_spawns(
 
 #+end_src
 
-** distance function for LastBroadcast
+*** distance function for LastBroadcast
 #+begin_src rust
 const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
 const VELOCITY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<VelocityPackage>() as f32).floor() as usize;
@@ -415,7 +423,7 @@ fn update_per_distance(
 
 #+end_src
 
-** broadcast alive states
+*** broadcast alive states
 #+begin_src rust
 fn broadcast_alive(
     outgoing_sender: Res<OutgoingSender>,
@@ -454,7 +462,7 @@ fn broadcast_alive(
 
 #+end_src
 
-** broadcast positions
+*** broadcast positions
 #+begin_src rust
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
@@ -499,7 +507,7 @@ fn broadcast_positions(
 
 #+end_src
 
-** broadcast velocities
+*** broadcast velocities
 #+begin_src rust
 fn broadcast_velocities(
     outgoing_sender: Res<OutgoingSender>,
@@ -543,8 +551,8 @@ fn broadcast_velocities(
 
 #+end_src
 
-* setup
-** spawn plane3d camera
+** setup
+*** spawn plane3d camera
 #+begin_src rust
 fn setup(
     mut commands: Commands,
@@ -582,7 +590,7 @@ fn setup(
 
 #+end_src
 
-** spawn glb map ground floor
+*** spawn glb map ground floor
 #+begin_src rust
     commands.spawn((
         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
@@ -599,7 +607,7 @@ fn setup(
     ));
 #+end_src
 
-** spawn house glb collision
+*** spawn house glb collision
 #+begin_src rust
     commands.spawn((
         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
@@ -618,7 +626,7 @@ fn setup(
 
 #+end_src
 
-* spawn enemies enemy
+** spawn enemies enemy
 #+begin_src rust
 fn spawn_enemies(
     mut commands: Commands,
@@ -667,7 +675,7 @@ fn spawn_enemies(
 
 #+end_src
 
-* gameplay kill system
+** gameplay kill system
 #+begin_src rust
 fn apply_velocity_system(
     time: Res<Time>,
@@ -694,4 +702,3 @@ fn enemy_kill_system(
 }
 
 #+end_src
-
