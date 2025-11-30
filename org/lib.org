@@ -403,7 +403,7 @@ impl Into<NetComponent> for Transform {
     fn into(self) -> NetComponent {
         NetComponent::Transform {
             translation: self.translation.into(),
-            rotation: self.rotation.into(), // TODO TEMP
+            rotation: self.rotation.into(),
             scale: self.scale.into(),
         }
     }

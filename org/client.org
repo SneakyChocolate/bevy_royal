@@ -224,7 +224,6 @@ fn main() {
             rotate_player,
             player_movement_system,
             update_dead_color,
-            print_alive_count,
         ))
         .run();
 }
@@ -604,14 +603,15 @@ fn cursor_lock(
     cursor_options.visible = false;
 }
 
+// TODO figure out why this only works without the player componnent
 fn update_dead_color(
     mats: Res<PlayerMaterials>,
     mut q: Query<(
         &mut MeshMaterial3d<StandardMaterial>,
         &Alive,
     ), (
-        With<Player>,
-        // Changed<Alive>,
+        // With<Player>,
+        Changed<Alive>,
     )>,
 ) {
     let mut count = 0;
