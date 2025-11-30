@@ -177,6 +177,7 @@ fn main() {
             rotate_player,
             player_movement_system,
             update_dead_color,
+            print_alive_count,
         ))
         .run();
 }
@@ -360,6 +361,7 @@ fn receive_messages(
                             }
                         }
                     },
+
                     // receiv myself
                     ServerMessageInner::Ok(net_id) => {
                         if !entity_map.0.contains_key(&net_id) {
@@ -502,11 +504,16 @@ fn cursor_lock(
 }
 
 // TEMP
-fn print_enemy_count(
-    enemies: Query<Entity, With<Enemy>>,
+fn print_alive_count(
+    q: Query<&Alive>,
 ) {
-    let count = enemies.iter().count();
-    println!("enemeis: {count}");
+    let mut count = 0;
+    for alive in q.iter() {
+        if alive.0 {
+            count += 1;
+        }
+    }
+    println!("alive count: {count}");
 }
 
 fn update_dead_color(

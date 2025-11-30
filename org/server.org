@@ -121,7 +121,7 @@ fn main() {
     App::new()
         .insert_resource(IncomingReceiver(incoming_receiver))
         .insert_resource(OutgoingSender(outgoing_sender))
-        .insert_resource(Gravity(Vec3::NEG_Z * 9.))
+        .insert_resource(Gravity(Vec3::NEG_Z * 19.))
         // .insert_resource(Gravity::ZERO)
         .insert_resource(IDCounter(0))
         .insert_resource(EntityMap::default())
@@ -346,7 +346,6 @@ fn broadcast_player_spawns(
             println!("player broadcast");
             let net_id = net_id_map.0.get(&entity).unwrap();
             entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
-                (*transform).into(),
                 NetComponent::Sphere(radius.0),
                 (*transform).into(),
                 (*velocity).into(),
