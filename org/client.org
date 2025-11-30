@@ -220,6 +220,7 @@ fn main() {
 #+end_src
 
 ** setup
+*** parameters
 #+begin_src rust
 fn setup(
     outgoing_sender: Res<OutgoingSender>,
@@ -228,6 +229,10 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
+#+end_src
+
+*** send login message
+#+begin_src rust
     let login_message = ClientMessage::login();
     outgoing_sender.0.send(login_message).unwrap();
 

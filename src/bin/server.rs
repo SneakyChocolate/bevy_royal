@@ -95,6 +95,7 @@ fn main() {
         .insert_resource(IDCounter(0))
         .insert_resource(EntityMap::default())
         .insert_resource(NetIDMap::default())
+        .insert_resource(ClientPlayerMap::default())
         .add_plugins(DefaultPlugins)
         .add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, (
@@ -157,6 +158,7 @@ fn receive_messages(
     mut entity_map: ResMut<EntityMap>,
     mut player_query: Query<(&mut PlayerVelocityType, &mut Transform), With<Player>>,
     client_addresses: Query<Entity, With<UpdateAddress>>,
+    mut client_player_map: ResMut<ClientPlayerMap>,
 ) {
     while let Ok((addr, ClientMessage {reliable, message: client_message})) = incoming_receiver.0.try_recv() {
 
@@ -168,36 +170,41 @@ fn receive_messages(
             ClientMessageInner::Confirm(_) => {},
 
             ClientMessageInner::Login => {
-                println!("login");
-                // spawn player
-                let player_radius = 1.5;
-                let id = commands.spawn((
-                    Transform::from_xyz(0., 0., player_radius + 10.),
-                    Player,
-                    Alive(true),
-                    Radius(player_radius),
-                    // PlayerVelocityType::new(Vec3::ZERO),
-                    LinearVelocity(Vec3::new(10., -10., 0.)),
-                    RigidBody::Dynamic,
-                    CollisionLayers::new([Layer::Player], [Layer::Boundary]),
-                    Collider::sphere(player_radius),
+                if let Some(entity) = client_player_map.0.get(&addr) {
+                    println!("duplicated login denied");
+                }
+                else {
+                    println!("login");
+                    // spawn player
+                    let player_radius = 1.5;
+                    let id = commands.spawn((
+                        Transform::from_xyz(0., 0., player_radius + 10.),
+                        Player,
+                        Alive(true),
+                        Radius(player_radius),
+                        // PlayerVelocityType::new(Vec3::ZERO),
+                        LinearVelocity(Vec3::new(10., -10., 0.)),
+                        RigidBody::Dynamic,
+                        CollisionLayers::new([Layer::Player], [Layer::Boundary]),
+                        Collider::sphere(player_radius),
 
-                    Mesh3d(meshes.add(Sphere::new(player_radius))),
-                    MeshMaterial3d(materials.add(Color::srgb(0., 1., 0.))),
-                    UpdateAddress {addr},
-                    PendingSpawn,
-                    LastBroadcast(HashMap::new()),
-                )).id();
+                        Mesh3d(meshes.add(Sphere::new(player_radius))),
+                        MeshMaterial3d(materials.add(Color::srgb(0., 1., 0.))),
+                        UpdateAddress {addr},
+                        PendingSpawn,
+                        LastBroadcast(HashMap::new()),
+                    )).id();
 
-                net_id_map.0.insert(id, id_counter.0);
-                entity_map.0.insert(id_counter.0, id);
-                outgoing_sender.0.send((addr, ServerMessage::ok(1, id_counter.0))).unwrap();
+                    net_id_map.0.insert(id, id_counter.0);
+                    entity_map.0.insert(id_counter.0, id);
+                    outgoing_sender.0.send((addr, ServerMessage::ok(1, id_counter.0))).unwrap();
 
-                id_counter.0 += 1;
+                    id_counter.0 += 1;
 
-                // give all clients pending spawn
-                for client in client_addresses {
-                    commands.entity(client).insert(PendingSpawn);
+                    // give all clients pending spawn
+                    for client in client_addresses {
+                        commands.entity(client).insert(PendingSpawn);
+                    }
                 }
             },
 

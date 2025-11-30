@@ -178,6 +178,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
+
     let login_message = ClientMessage::login();
     outgoing_sender.0.send(login_message).unwrap();
 
