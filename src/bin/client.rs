@@ -12,12 +12,21 @@ const FOG_COLOR: Color = Color::srgb(0.15, 0.20, 0.30);
 
 #[derive(Resource)]
 pub struct IncomingReceiver(crossbeam::channel::Receiver<ServerMessage>);
+
 #[derive(Resource)]
 pub struct OutgoingSender(crossbeam::channel::Sender<ClientMessage>);
+
 #[derive(Resource, Default)]
 struct NetIDMap(HashMap<Entity, NetIDType>);
+
 #[derive(Resource, Default)]
 struct EntityMap(HashMap<NetIDType, Entity>);
+
+#[derive(Resource)]
+struct PlayerMaterials {
+    normal: Handle<StandardMaterial>,
+    destroyed: Handle<StandardMaterial>,
+}
 
 #[derive(Component)]
 struct Controlled;
@@ -167,6 +176,7 @@ fn main() {
             cursor_position_system,
             rotate_player,
             player_movement_system,
+            update_dead_color,
         ))
         .run();
 }
@@ -178,6 +188,10 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
+
+    let normal = materials.add(Color::srgb(0., 1., 0.));
+    let destroyed = materials.add(Color::srgb(5.0, 0.0, 0.0));
+    commands.insert_resource(PlayerMaterials { normal, destroyed });
 
     let login_message = ClientMessage::login();
     outgoing_sender.0.send(login_message).unwrap();
@@ -493,4 +507,18 @@ fn print_enemy_count(
 ) {
     let count = enemies.iter().count();
     println!("enemeis: {count}");
+}
+
+fn update_dead_color(
+    mats: Res<PlayerMaterials>,
+    mut q: Query<(&mut MeshMaterial3d<StandardMaterial>, &Alive), (With<Player>, Changed<Alive>)>,
+) {
+    for (mut mat, alive) in &mut q {
+        if alive.0 {
+            mat.0 = mats.normal.clone();
+        }
+        else {
+            mat.0 = mats.destroyed.clone();
+        }
+    }
 }
