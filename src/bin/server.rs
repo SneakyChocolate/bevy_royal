@@ -492,15 +492,24 @@ fn setup(
         DebandDither::Enabled,
     ));
 
-    commands.spawn((
-        Mesh3d(meshes.add(Plane3d::default().mesh().size(2000.0, 2000.0).subdivisions(10))),
-        MeshMaterial3d(standard_materials.add(Color::srgb(0.4, 0.5, 0.1))),
-        Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
-            .with_translation(Vec3::new(0., 0., 0.)),
+    // commands.spawn((
+    //     Mesh3d(meshes.add(Plane3d::default().mesh().size(2000.0, 2000.0).subdivisions(10))),
+    //     MeshMaterial3d(standard_materials.add(Color::srgb(0.4, 0.5, 0.1))),
+    //     Transform::from_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
+    //         .with_translation(Vec3::new(0., 0., 0.)),
 
-        Collider::cuboid(2000., 0.5, 2000.),
-        CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
-        RigidBody::Static,
+    //     Collider::cuboid(2000., 0.5, 2000.),
+    //     CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
+    //     RigidBody::Static,
+    // ));
+
+    // sun
+    commands.spawn((
+        DirectionalLight {
+            illuminance: 320.0,
+            ..default()
+        },
+        Transform::from_xyz(0.0, 2.0, 0.0).with_rotation(Quat::from_rotation_x(-std::f32::consts::PI / 4.)),
     ));
 
     commands.spawn((
@@ -509,11 +518,11 @@ fn setup(
         RigidBody::Static,
 
         SceneRoot(asset_server.load(
-            GltfAssetLabel::Scene(0).from_asset("maptest.glb"),
+            GltfAssetLabel::Scene(0).from_asset("map_shooter12.glb"),
         )),
-        Transform::from_xyz(-10., 10., 3.)
+        Transform::from_xyz(0., 0., -35.)
             .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(30.))
+            .with_scale(Vec3::splat(500.))
         ,
     ));
 
