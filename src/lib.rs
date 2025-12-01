@@ -158,6 +158,12 @@ pub struct PositionPackage {
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
+pub struct LookPackage {
+    pub player_net_id: NetIDType,
+    pub rotation: MyQuat,
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
 pub struct VelocityPackage {
     pub net_id: NetIDType,
     pub velocity: MyVec3,

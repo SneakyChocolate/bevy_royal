@@ -372,7 +372,6 @@ fn broadcast_alive(
             .filter_map(|(entity, entity_alive)| {
                 let net_id = net_id_map.0.get(&entity)?;
 
-                println!("sending alive update");
                 Some(AlivePackage {
                     net_id: *net_id,
                     alive: entity_alive.0,

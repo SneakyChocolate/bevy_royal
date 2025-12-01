@@ -305,7 +305,7 @@ fn player_movement_system(
 
 fn rotate_player(
     accumulated_mouse_motion: Res<AccumulatedMouseMotion>,
-    player: Single<(Entity, &mut Transform, &CameraSensitivity), With<Controlled>>,
+    player: Single<(&ChildOf, &mut Transform, &CameraSensitivity)>,
     outgoing_sender: Res<OutgoingSender>,
     net_id_map: Res<NetIDMap>,
 ) {
@@ -326,7 +326,7 @@ fn rotate_player(
         let new_rotation = Quat::from_euler(EulerRot::ZXY, yaw, pitch, roll);
         transform.rotation = new_rotation;
 
-        let net_id = net_id_map.0.get(&player_entity).unwrap();
+        let net_id = net_id_map.0.get(&player_entity.0).expect("no entity found in map");
         outgoing_sender.0.send(ClientMessage::rotation(*net_id, new_rotation.into())).unwrap();
     }
 }
@@ -414,6 +414,7 @@ fn receive_messages(
                             // ));
 
                             // spawn player
+
                             let player_radius = 1.5;
                             let id = commands.spawn((
                                 Transform::default(),
@@ -425,52 +426,54 @@ fn receive_messages(
 
                                 children![
                                     (
+                                        Transform::default(), // spin this one
                                         CameraSensitivity::default(),
-                                        Camera3d::default(),
-                                        Camera {
-                                            clear_color: ClearColorConfig::Custom(FOG_COLOR),
-                                            ..default()
-                                        },
-                                        DistanceFog {
-                                            color: FOG_COLOR,
-                                            falloff: FogFalloff::Linear {
-                                                start: player_radius * 100.,
-                                                end: player_radius * 300.,
-                                            },
-                                            ..default()
-                                        },
+                                        children![
 
-                                        Projection::from(PerspectiveProjection {
-                                            fov: 90.0_f32.to_radians(),
-                                            ..default()
-                                        }),
-                                        Transform::from_xyz(0.0, - player_radius * 2.5, player_radius * 1.5).looking_to(Vec3::Y, Vec3::Z),
+                                            (
+                                                Camera3d::default(),
+                                                Camera {
+                                                    clear_color: ClearColorConfig::Custom(FOG_COLOR),
+                                                    ..default()
+                                                },
+                                                DistanceFog {
+                                                    color: FOG_COLOR,
+                                                    falloff: FogFalloff::Linear {
+                                                        start: player_radius * 100.,
+                                                        end: player_radius * 300.,
+                                                    },
+                                                    ..default()
+                                                },
 
-                                        Tonemapping::TonyMcMapface,
-                                        Bloom::default(),
-                                        DebandDither::Enabled,
+                                                Projection::from(PerspectiveProjection {
+                                                    fov: 90.0_f32.to_radians(),
+                                                    ..default()
+                                                }),
+                                                Transform::from_xyz(0.0, - player_radius * 2.5, player_radius * 1.5).looking_to(Vec3::Y, Vec3::Z),
+
+                                                Tonemapping::TonyMcMapface,
+                                                Bloom::default(),
+                                                DebandDither::Enabled,
+                                            ),
+
+                                            (
+                                                Transform::from_xyz(0.0, - player_radius * 6.5, player_radius * 5.5).looking_to(Vec3::Y, Vec3::Z),
+                                                SpotLight {
+                                                    shadows_enabled: true,
+                                                    intensity: player_radius * 10000000.,
+                                                    range: player_radius * 100.,
+                                                    shadow_depth_bias: 10.0,
+                                                    ..default()
+                                                },
+                                            ),
+
+                                        ],
                                     ),
-                                    (
-                                        Transform::from_xyz(0.0, - player_radius * 6.5, player_radius * 5.5).looking_to(Vec3::Y, Vec3::Z),
-                                        SpotLight {
-                                            shadows_enabled: true,
-                                            intensity: player_radius * 10000000.,
-                                            range: player_radius * 100.,
-                                            shadow_depth_bias: 10.0,
-                                            ..default()
-                                        },
-                                        // PointLight {
-                                        //     shadows_enabled: true,
-                                        //     intensity: 1000000000.,
-                                        //     range: 3000.0,
-                                        //     shadow_depth_bias: 10.0,
-                                        //     ..default()
-                                        // },
-                                    ),
+
                                     (
                                         MeshMaterial3d(standard_materials.add(Color::srgb(0., 1., 0.))),
                                         Mesh3d(meshes.add(Capsule3d::new(0.4, player_radius))),
-                                        Transform::default(),
+                                        Transform::from_rotation(Quat::from_rotation_x(90_f32.to_radians())),
                                     ),
                                 ],
                             )).id();
