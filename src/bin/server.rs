@@ -113,6 +113,9 @@ fn main() {
             broadcast_velocities,
             broadcast_alive,
         ))
+        .add_systems(Update, (
+            fix_player_rotation,
+        ))
         .run();
 }
 
@@ -140,6 +143,9 @@ pub struct LastBroadcast(pub HashMap<SocketAddr, f32>);
 #[derive(Component)]
 struct PendingSpawn;
 
+#[derive(Component, Default)]
+struct PlayerLook(MyQuat);
+
 #[derive(Component)]
 pub struct UpdateAddress {
     addr: SocketAddr,
@@ -157,6 +163,7 @@ fn receive_messages(
     mut net_id_map: ResMut<NetIDMap>,
     mut entity_map: ResMut<EntityMap>,
     mut player_query: Query<(&mut PlayerVelocityType, &mut Transform), With<Player>>,
+    mut player_look_query: Query<&mut PlayerLook>,
     client_addresses: Query<Entity, With<UpdateAddress>>,
     mut client_player_map: ResMut<ClientPlayerMap>,
 ) {
@@ -186,7 +193,8 @@ fn receive_messages(
                         LinearVelocity(Vec3::new(10., -10., 0.)),
                         RigidBody::Dynamic,
                         CollisionLayers::new([Layer::Player], [Layer::Boundary]),
-                        Collider::sphere(player_radius),
+                        Collider::capsule(0.4, player_radius),
+                        PlayerLook::default(),
 
                         Mesh3d(meshes.add(Sphere::new(player_radius))),
                         MeshMaterial3d(materials.add(Color::srgb(0., 1., 0.))),
@@ -249,9 +257,9 @@ fn receive_messages(
                 let mut player_exists = false;
                 match player_entity_option {
                     Some(player_entity) => {
-                        if let Ok((_, mut player_transform)) = player_query.get_mut(*player_entity) {
+                        if let Ok(mut player_look) = player_look_query.get_mut(*player_entity) {
                             player_exists = true;
-                            player_transform.rotation = rotation.into();
+                            player_look.0 = rotation;
                         }
                     },
                     None => {},
@@ -606,5 +614,13 @@ fn enemy_kill_system(
                 player_alive.0 = false;
             }
         }
+    }
+}
+
+fn fix_player_rotation(
+    players: Query<&mut Transform, With<Player>>,
+) {
+    for mut transform in players {
+        transform.rotation = Quat::from_rotation_x(90_f32.to_radians());
     }
 }

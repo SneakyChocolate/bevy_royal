@@ -104,7 +104,7 @@ impl Into<MyVec3> for Vec3 {
     }
 }
 
-#[derive(Encode, Decode, Debug, Clone, Copy)]
+#[derive(Encode, Decode, Debug, Clone, Copy, Default)]
 pub struct MyQuat {
     pub x: f32,
     pub y: f32,
@@ -342,6 +342,8 @@ pub enum NetComponent {
     },
     Sphere(f32),
     SphereCollider(f32),
+    // Capsule(f32, f32),
+    // CapsuleCollider(f32, f32),
     ColorMaterial {
         r: f32,
         g: f32,
