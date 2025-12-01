@@ -354,7 +354,7 @@ fn broadcast_player_spawns(
             println!("player broadcast");
             let net_id = net_id_map.0.get(&entity).unwrap();
             entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
-                NetComponent::Sphere(radius.0),
+                NetComponent::Capsule(0.4, radius.0),
                 (*transform).into(),
                 (*velocity).into(),
                 (materials.get(meshmaterial3d).unwrap().clone()).into(),

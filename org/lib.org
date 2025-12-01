@@ -383,8 +383,8 @@ pub enum NetComponent {
     },
     Sphere(f32),
     SphereCollider(f32),
-    // Capsule(f32, f32),
-    // CapsuleCollider(f32, f32),
+    Capsule(f32, f32),
+    CapsuleCollider(f32, f32),
     ColorMaterial {
         r: f32,
         g: f32,
@@ -472,6 +472,12 @@ impl NetComponent {
             },
             NetComponent::SphereCollider(radius) => {
                 entity.insert(Collider::sphere(*radius));
+            },
+            NetComponent::Capsule(radius, height) => {
+                entity.insert(Mesh3d(meshes.add(Capsule3d::new(*radius, *height))));
+            },
+            NetComponent::CapsuleCollider(radius, height) => {
+                entity.insert(Collider::capsule(*radius, *height));
             },
             NetComponent::ColorMaterial { r, g, b } => {
                 entity.insert(MeshMaterial3d(materials.add(Color::srgb(*r, *g, *b))));
