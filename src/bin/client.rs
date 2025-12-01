@@ -188,6 +188,10 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
+    let map_transform = Transform::from_xyz(0., 0., -35.)
+        .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
+        .with_scale(Vec3::splat(500.))
+    ;
 
     let normal = materials.add(Color::srgb(0., 1., 0.));
     let destroyed = materials.add(Color::srgb(5.0, 0.0, 0.0));
@@ -204,10 +208,7 @@ fn setup(
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("map_shooter12.glb"),
         )),
-        Transform::from_xyz(0., 0., -35.)
-            .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(500.))
-        ,
+        map_transform.clone(),
     ));
 
     commands.spawn((
@@ -218,10 +219,18 @@ fn setup(
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("map_trees1.glb"),
         )),
-        Transform::from_xyz(0., 0., -35.)
-            .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(500.))
-        ,
+        map_transform.clone(),
+    ));
+
+    commands.spawn((
+        // ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
+        // CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
+        // RigidBody::Static,
+
+        SceneRoot(asset_server.load(
+            GltfAssetLabel::Scene(0).from_asset("house1.glb"),
+        )),
+        map_transform.clone(),
     ));
 
     commands.spawn((
@@ -237,6 +246,7 @@ fn setup(
             .with_scale(Vec3::splat(30.))
         ,
     ));
+
 }
 
 fn cursor_position_system(
@@ -292,7 +302,6 @@ fn player_movement_system(
         outgoing_sender.0.send(ClientMessage::setvelocity(*net_id, velocity.0.truncate().into())).unwrap();
     }
 }
-
 
 fn rotate_player(
     accumulated_mouse_motion: Res<AccumulatedMouseMotion>,
@@ -407,18 +416,16 @@ fn receive_messages(
                             // spawn player
                             let player_radius = 1.5;
                             let id = commands.spawn((
-                                Mesh3d(meshes.add(Sphere::new(player_radius))),
-                                Transform::default() ,
+                                Transform::default(),
                                 Velocity(Vec3::ZERO),
-                                MeshMaterial3d(standard_materials.add(Color::srgb(0., 1., 0.))),
                                 Player,
                                 Alive(true),
                                 Radius(player_radius),
                                 Controlled,
-                                CameraSensitivity::default(),
 
                                 children![
                                     (
+                                        CameraSensitivity::default(),
                                         Camera3d::default(),
                                         Camera {
                                             clear_color: ClearColorConfig::Custom(FOG_COLOR),
@@ -459,6 +466,11 @@ fn receive_messages(
                                         //     shadow_depth_bias: 10.0,
                                         //     ..default()
                                         // },
+                                    ),
+                                    (
+                                        MeshMaterial3d(standard_materials.add(Color::srgb(0., 1., 0.))),
+                                        Mesh3d(meshes.add(Capsule3d::new(0.4, player_radius))),
+                                        Transform::default(),
                                     ),
                                 ],
                             )).id();
