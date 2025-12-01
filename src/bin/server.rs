@@ -337,19 +337,21 @@ fn broadcast_enemy_spawns(
 
 const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
 const VELOCITY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<VelocityPackage>() as f32).floor() as usize;
+const PLAYER_LOOK_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PlayerLookPackage>() as f32).floor() as usize;
 const ALIVE_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<AlivePackage>() as f32).floor() as usize;
 
 fn update_per_distance(
     addr: SocketAddr,
     delta_secs: f32,
     last_broadcast_option: Option<Mut<LastBroadcast>>,
+    set_last_broadcast: bool,
     distance: f32,
 ) -> bool {
     if let Some(mut last_broadcast) = last_broadcast_option {
         let mut lb = last_broadcast.0.entry(addr).or_insert(0.);
-        *lb += delta_secs;
+        if set_last_broadcast {*lb += delta_secs};
         if *lb >= distance / 200. {
-            *lb = 0.0;
+            if set_last_broadcast {*lb = 0.0;}
             true
         }
         else {
@@ -395,6 +397,46 @@ fn broadcast_alive(
     }
 }
 
+fn broadcast_player_looks(
+    outgoing_sender: Res<OutgoingSender>,
+    client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
+    mut query: Query<(Entity, &Transform, &PlayerLook, Option<&mut LastBroadcast>)>,
+    net_id_map: ResMut<NetIDMap>,
+    time: Res<Time>,
+) {
+    let delta_secs = time.delta_secs();
+
+    // Process each client separately
+    for (_entity, addr, player_transform) in client_addresses.iter() {
+        let player_pos = player_transform.translation;
+
+        // Collect enemies within radius for this specific player
+        let nearby_entities: Vec<PlayerLookPackage> = query
+            .iter_mut()
+            .filter_map(|(entity, entity_transform, player_look, last_broadcast_option)| {
+                let distance = player_pos.distance(entity_transform.translation);
+                let net_id = net_id_map.0.get(&entity)?;
+
+                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, false, distance) {
+                    Some(PlayerLookPackage {
+                        net_id: *net_id,
+                        rotation: player_look.0,
+                    })
+                }
+                else {
+                    None
+                }
+            })
+            .collect();
+
+        // Split into chunks and send
+        for chunk in nearby_entities.chunks(PLAYER_LOOK_PACKAGES_PER_MESSAGE) {
+            let message = ServerMessage::update_player_looks(chunk.to_vec());
+            outgoing_sender.0.send((addr.addr, message)).unwrap();
+        }
+    }
+}
+
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
@@ -415,7 +457,7 @@ fn broadcast_positions(
                 let distance = player_pos.distance(entity_transform.translation);
                 let net_id = net_id_map.0.get(&entity)?;
 
-                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, distance) {
+                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, true, distance) {
                     Some(PositionPackage {
                         net_id: *net_id,
                         position: entity_transform.translation.into(),
@@ -456,7 +498,7 @@ fn broadcast_velocities(
                 let distance = player_pos.distance(entity_transform.translation);
                 let net_id = net_id_map.0.get(&entity)?;
 
-                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, distance) {
+                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, false, distance) {
                     Some(VelocityPackage {
                         net_id: *net_id,
                         velocity: entity_velocity.0.into(),

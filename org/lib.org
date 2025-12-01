@@ -182,8 +182,8 @@ pub struct PositionPackage {
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
-pub struct LookPackage {
-    pub player_net_id: NetIDType,
+pub struct PlayerLookPackage {
+    pub net_id: NetIDType, // must be player
     pub rotation: MyQuat,
 }
 
@@ -260,6 +260,12 @@ impl ServerMessage {
             message: ServerMessageInner::UpdateVelocities(packages),
         }
     }
+    pub fn update_player_looks(packages: Vec<PlayerLookPackage>) -> Self {
+        Self {
+            reliable: 0,
+            message: ServerMessageInner::UpdatePlayerLooks(packages),
+        }
+    }
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
@@ -268,6 +274,7 @@ pub enum ServerMessageInner {
     SpawnEntities(Vec<EntityPackage>),
     UpdateEntities(Vec<EntityPackage>),
     UpdatePositions(Vec<PositionPackage>),
+    UpdatePlayerLooks(Vec<PlayerLookPackage>),
     UpdateVelocities(Vec<VelocityPackage>),
     UpdateAlives(Vec<AlivePackage>),
     Confirm(usize),
@@ -447,6 +454,8 @@ impl Into<NetComponent> for Radius {
     }
 }
 
+#[derive(Component)]
+pub struct PlayerLookAnchor;
 
 impl NetComponent {
     pub fn apply_to(
@@ -497,14 +506,18 @@ impl NetComponent {
             NetComponent::SpotLight(player_radius) => {
                 entity.with_children(|parent| {
                     parent.spawn((
-                        Transform::from_xyz(0.0, - player_radius * 6.5, player_radius * 5.5).looking_to(Vec3::Y, Vec3::Z),
-                        SpotLight {
-                            shadows_enabled: true,
-                            intensity: player_radius * 10000000.,
-                            range: player_radius * 100.,
-                            shadow_depth_bias: 10.0,
-                            ..default()
-                        },
+                        PlayerLookAnchor,
+                        Transform::default(),
+                        children![(
+                            Transform::from_xyz(0.0, - player_radius * 6.5, player_radius * 5.5).looking_to(Vec3::Y, Vec3::Z),
+                            SpotLight {
+                                shadows_enabled: true,
+                                intensity: player_radius * 10000000.,
+                                range: player_radius * 100.,
+                                shadow_depth_bias: 10.0,
+                                ..default()
+                            },
+                        )]
                     ));
                 });
             }

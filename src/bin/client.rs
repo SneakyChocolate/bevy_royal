@@ -342,6 +342,7 @@ fn receive_messages(
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
     mut transform_query: Query<(Entity, &mut Transform, Has<Controlled>)>,
+    mut anchor_query: Query<(Entity, &PlayerLookAnchor)>,
     mut velocity_query: Query<(Entity, &mut LinearVelocity, Has<Controlled>)>,
     mut alive_query: Query<(Entity, &mut Alive)>,
 ) {
@@ -428,7 +429,8 @@ fn receive_messages(
 
                                 children![
                                     (
-                                        Transform::default(), // spin this one
+                                        PlayerLookAnchor, // spin this one on player look
+                                        Transform::default(),
                                         CameraSensitivity::default(),
                                         children![
 
@@ -483,6 +485,20 @@ fn receive_messages(
                             entity_map.0.insert(net_id, id);
                             net_id_map.0.insert(id, net_id);
                         }
+                    },
+
+                    ServerMessageInner::UpdatePlayerLooks(packages) => {
+                        // TODO
+                        // for package in packages {
+                        //     if let Some(entity) = entity_map.0.get(&position_package.net_id) {
+                        //         if let Ok((_, mut transform, controlled)) = transform_query.get_mut(*entity) {
+                        //             transform.translation = position_package.position.clone().into();
+                        //             if !controlled {
+                        //                 transform.rotation = position_package.rotation.clone().into();
+                        //             }
+                        //         }
+                        //     }
+                        // }
                     },
 
                     ServerMessageInner::UpdatePositions(position_packages) => {
