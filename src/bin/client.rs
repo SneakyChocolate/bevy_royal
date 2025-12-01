@@ -540,23 +540,23 @@ fn cursor_lock(
 // TODO figure out why this only works without the player componnent
 fn update_dead_color(
     mats: Res<PlayerMaterials>,
-    mut q: Query<(
-        &mut MeshMaterial3d<StandardMaterial>,
-        &Alive,
-    ), (
-        // With<Player>,
-        Changed<Alive>,
-    )>,
+    mut alive_q: Query<( &Alive, &Children ), Changed<Alive>>,
+    mut material_q: Query<&mut MeshMaterial3d<StandardMaterial>>,
 ) {
-    let mut count = 0;
-    for (mut mat, alive) in &mut q {
-        count += 1;
+    for (alive, children) in &mut alive_q {
         if alive.0 {
-            mat.0 = mats.normal.clone();
+            for child in children.iter() {
+                if let Ok(mut mat) = material_q.get_mut(child) {
+                    mat.0 = mats.normal.clone();
+                }
+            }
         }
         else {
-            mat.0 = mats.destroyed.clone();
+            for child in children.iter() {
+                if let Ok(mut mat) = material_q.get_mut(child) {
+                    mat.0 = mats.destroyed.clone();
+                }
+            }
         }
     }
-    // println!("alive count: {count}");
 }
