@@ -109,8 +109,14 @@ fn main() {
             enemy_kill_system,
             broadcast_enemy_spawns,
             broadcast_player_spawns,
-            broadcast_positions,
-            broadcast_velocities,
+            (
+                (
+                    broadcast_positions,
+                    broadcast_velocities,
+                    broadcast_player_looks,
+                ),
+                update_per_distance_setter,
+            ).chain(),
             broadcast_alive,
         ))
         .add_systems(Update, (
@@ -137,6 +143,7 @@ struct ClientPlayerMap(HashMap<SocketAddr, Entity>);
 #[derive(Resource)]
 struct IDCounter(pub NetIDType);
 
+/// attached to entities that are being sent to players / clients
 #[derive(Component)]
 pub struct LastBroadcast(pub HashMap<SocketAddr, f32>);
 
@@ -340,26 +347,54 @@ const VELOCITY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<Veloci
 const PLAYER_LOOK_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PlayerLookPackage>() as f32).floor() as usize;
 const ALIVE_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<AlivePackage>() as f32).floor() as usize;
 
-fn update_per_distance(
+fn update_per_distance_mut(
     addr: SocketAddr,
     delta_secs: f32,
     last_broadcast_option: Option<Mut<LastBroadcast>>,
-    set_last_broadcast: bool,
     distance: f32,
 ) -> bool {
     if let Some(mut last_broadcast) = last_broadcast_option {
         let mut lb = last_broadcast.0.entry(addr).or_insert(0.);
-        if set_last_broadcast {*lb += delta_secs};
-        if *lb >= distance / 200. {
-            if set_last_broadcast {*lb = 0.0;}
-            true
-        }
-        else {
-            false
-        }
+        *lb += delta_secs;
+        let updating = *lb >= distance / 500. + 0.01 ;
+        if updating {*lb = 0.0;}
+        updating
     }
     else {
         false
+    }
+}
+fn update_per_distance(
+    addr: SocketAddr,
+    delta_secs: f32,
+    last_broadcast_option: Option<&LastBroadcast>,
+    distance: f32,
+) -> bool {
+    if let Some(mut last_broadcast) = last_broadcast_option {
+        let mut lb = last_broadcast.0.entry(addr).or_insert(0.);
+        *lb >= distance / 500. + 0.01
+    }
+    else {
+        false
+    }
+}
+
+fn update_per_distance_setter(
+    client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
+    mut query: Query<(Entity, &Transform, &mut LastBroadcast)>,
+    time: Res<Time>,
+) {
+    let delta_secs = time.delta_secs();
+
+    // Process each client separately
+    for (_entity, addr, player_transform) in client_addresses.iter() {
+        let player_pos = player_transform.translation;
+
+        // Collect enemies within radius for this specific player
+        for (entity, entity_transform, last_broadcast) in &mut query {
+            let distance = player_pos.distance(entity_transform.translation);
+            update_per_distance_mut(addr.addr, delta_secs, Some( last_broadcast ), distance);
+        }
     }
 }
 
@@ -400,7 +435,7 @@ fn broadcast_alive(
 fn broadcast_player_looks(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    mut query: Query<(Entity, &Transform, &PlayerLook, Option<&mut LastBroadcast>)>,
+    mut query: Query<(Entity, &Transform, &PlayerLook, Option<&LastBroadcast>)>,
     net_id_map: ResMut<NetIDMap>,
     time: Res<Time>,
 ) {
@@ -417,7 +452,7 @@ fn broadcast_player_looks(
                 let distance = player_pos.distance(entity_transform.translation);
                 let net_id = net_id_map.0.get(&entity)?;
 
-                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, false, distance) {
+                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, distance) {
                     Some(PlayerLookPackage {
                         net_id: *net_id,
                         rotation: player_look.0,
@@ -440,7 +475,7 @@ fn broadcast_player_looks(
 fn broadcast_positions(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    mut query: Query<(Entity, &Transform, Option<&mut LastBroadcast>)>,
+    mut query: Query<(Entity, &Transform, Option<&LastBroadcast>)>,
     net_id_map: ResMut<NetIDMap>,
     time: Res<Time>,
 ) {
@@ -457,7 +492,8 @@ fn broadcast_positions(
                 let distance = player_pos.distance(entity_transform.translation);
                 let net_id = net_id_map.0.get(&entity)?;
 
-                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, true, distance) {
+                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, distance) {
+                    info!("send positions");
                     Some(PositionPackage {
                         net_id: *net_id,
                         position: entity_transform.translation.into(),
@@ -481,7 +517,7 @@ fn broadcast_positions(
 fn broadcast_velocities(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    mut query: Query<(Entity, &Transform, &LinearVelocity, Option<&mut LastBroadcast>)>,
+    mut query: Query<(Entity, &Transform, &LinearVelocity, Option<&LastBroadcast>)>,
     net_id_map: ResMut<NetIDMap>,
     time: Res<Time>,
 ) {
@@ -498,7 +534,7 @@ fn broadcast_velocities(
                 let distance = player_pos.distance(entity_transform.translation);
                 let net_id = net_id_map.0.get(&entity)?;
 
-                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, false, distance) {
+                if update_per_distance(addr.addr, delta_secs, last_broadcast_option, distance) {
                     Some(VelocityPackage {
                         net_id: *net_id,
                         velocity: entity_velocity.0.into(),
@@ -535,7 +571,7 @@ fn setup(
             clear_color: ClearColorConfig::Custom(Color::BLACK),
             ..default()
         },
-        Transform::from_xyz(0., 0., 500.).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(0., 0., 1500.).looking_at(Vec3::ZERO, Vec3::Y),
         Tonemapping::TonyMcMapface,
         Bloom::default(),
         DebandDither::Enabled,
@@ -600,7 +636,7 @@ fn spawn_enemies(
 ) {
     let mut rng = rand::rng();
 
-    for _ in 0..2000 {
+    for _ in 0..100 {
         let velocity = LinearVelocity(random_velocity(3., 9.));
         let position = random_position(HALF_BOUNDARY);
         let material = MeshMaterial3d(materials.add(Color::srgb(
