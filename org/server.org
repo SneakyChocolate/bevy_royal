@@ -620,7 +620,6 @@ fn broadcast_positions(
                 let net_id = net_id_map.0.get(&entity)?;
 
                 if update_per_distance(addr.addr, delta_secs, last_broadcast_option, distance) {
-                    info!("send positions");
                     Some(PositionPackage {
                         net_id: *net_id,
                         position: entity_transform.translation.into(),

@@ -124,7 +124,6 @@ fn main() {
             while let Ok((len, _addr)) = socket.recv_from(buf) {
                 if let Some(ServerMessage {reliable, message: server_message}) = ServerMessage::decode(&buf[..len]) {
                     if let ServerMessageInner::Confirm(reliable) = &server_message {
-                        info!("receiced Confirm");
                         reliable_packages.remove(reliable);
                     }
                     // incoming_sender.send(server_message);
@@ -361,11 +360,9 @@ fn receive_messages(
                 match message {
 
                     ServerMessageInner::Confirm(_) => {
-                        info!("receiced Confirm");
                     },
 
                     ServerMessageInner::SpawnEntities(entity_packages) => {
-                        info!("receiced SpawnEntities");
                         for EntityPackage { net_id, components } in entity_packages {
                             if let Some(_) = entity_map.0.get(&net_id) {
                                 // already exists
@@ -384,7 +381,6 @@ fn receive_messages(
                         }
                     },
                     ServerMessageInner::UpdateEntities(entity_packages) => {
-                        info!("receiced UpdateEntities");
                         for EntityPackage { net_id, components } in entity_packages {
                             if let Some(entity) = entity_map.0.get(&net_id) {
                                 if let Ok(mut entity_commands) = commands.get_entity(*entity) {
@@ -398,7 +394,6 @@ fn receive_messages(
 
                     // receiv myself
                     ServerMessageInner::Ok(net_id) => {
-                        info!("receiced Ok");
                         if !entity_map.0.contains_key(&net_id) {
                             println!("player was created successfully with id {:?}", net_id);
 
@@ -494,7 +489,6 @@ fn receive_messages(
                     },
 
                     ServerMessageInner::UpdatePlayerLooks(packages) => {
-                        info!("receiced UpdatePlayerLooks");
                         // TODO
                         // for package in packages {
                         //     if let Some(entity) = entity_map.0.get(&position_package.net_id) {
@@ -509,7 +503,6 @@ fn receive_messages(
                     },
 
                     ServerMessageInner::UpdatePositions(position_packages) => {
-                        info!("receiced UpdatePositions");
                         for position_package in position_packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
                                 if let Ok((_, mut transform, controlled)) = transform_query.get_mut(*entity) {
@@ -523,7 +516,6 @@ fn receive_messages(
                     },
 
                     ServerMessageInner::UpdateVelocities(velocity_packages) => {
-                        info!("receiced UpdateVelocities");
                         for package in velocity_packages {
                             if let Some(entity) = entity_map.0.get(&package.net_id) {
                                 if let Ok((_, mut velocity, controlled)) = velocity_query.get_mut(*entity) {
@@ -536,7 +528,6 @@ fn receive_messages(
                     },
 
                     ServerMessageInner::UpdateAlives(packages) => {
-                        info!("receiced UpdateAlives");
                         for package in packages {
                             if let Some(entity) = entity_map.0.get(&package.net_id) {
                                 if let Ok((_, mut alive)) = alive_query.get_mut(*entity) {
