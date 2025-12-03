@@ -110,12 +110,13 @@ fn main() {
             broadcast_enemy_spawns,
             broadcast_player_spawns,
             (
+                update_per_distance_setter_increase,
                 (
                     broadcast_positions,
                     broadcast_velocities,
                     broadcast_player_looks,
                 ),
-                update_per_distance_setter,
+                update_per_distance_setter_reset,
             ).chain(),
             broadcast_alive,
         ))
@@ -347,7 +348,27 @@ const VELOCITY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<Veloci
 const PLAYER_LOOK_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PlayerLookPackage>() as f32).floor() as usize;
 const ALIVE_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<AlivePackage>() as f32).floor() as usize;
 
-fn update_per_distance_mut(
+fn update_per_distance_check(lb: f32, distance: f32) -> bool {
+   lb >= distance / 500. + 0.01
+}
+
+fn update_per_distance_reset(
+    addr: SocketAddr,
+    delta_secs: f32,
+    last_broadcast_option: Option<Mut<LastBroadcast>>,
+    distance: f32,
+) -> bool {
+    if let Some(mut last_broadcast) = last_broadcast_option {
+        let mut lb = last_broadcast.0.entry(addr).or_insert(0.);
+        let updating = update_per_distance_check(*lb, distance);
+        if updating {*lb = 0.0;}
+        updating
+    }
+    else {
+        false
+    }
+}
+fn update_per_distance_increase(
     addr: SocketAddr,
     delta_secs: f32,
     last_broadcast_option: Option<Mut<LastBroadcast>>,
@@ -356,8 +377,7 @@ fn update_per_distance_mut(
     if let Some(mut last_broadcast) = last_broadcast_option {
         let mut lb = last_broadcast.0.entry(addr).or_insert(0.);
         *lb += delta_secs;
-        let updating = *lb >= distance / 500. + 0.01 ;
-        if updating {*lb = 0.0;}
+        let updating = update_per_distance_check(*lb, distance);
         updating
     }
     else {
@@ -371,15 +391,15 @@ fn update_per_distance(
     distance: f32,
 ) -> bool {
     if let Some(mut last_broadcast) = last_broadcast_option {
-        let mut lb = last_broadcast.0.entry(addr).or_insert(0.);
-        *lb >= distance / 500. + 0.01
+        let lb = last_broadcast.0.get(&addr).cloned().unwrap_or_default();
+        update_per_distance_check(lb, distance)
     }
     else {
         false
     }
 }
 
-fn update_per_distance_setter(
+fn update_per_distance_setter_increase(
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
     mut query: Query<(Entity, &Transform, &mut LastBroadcast)>,
     time: Res<Time>,
@@ -393,7 +413,26 @@ fn update_per_distance_setter(
         // Collect enemies within radius for this specific player
         for (entity, entity_transform, last_broadcast) in &mut query {
             let distance = player_pos.distance(entity_transform.translation);
-            update_per_distance_mut(addr.addr, delta_secs, Some( last_broadcast ), distance);
+            update_per_distance_increase(addr.addr, delta_secs, Some( last_broadcast ), distance);
+        }
+    }
+}
+
+fn update_per_distance_setter_reset(
+    client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
+    mut query: Query<(Entity, &Transform, &mut LastBroadcast)>,
+    time: Res<Time>,
+) {
+    let delta_secs = time.delta_secs();
+
+    // Process each client separately
+    for (_entity, addr, player_transform) in client_addresses.iter() {
+        let player_pos = player_transform.translation;
+
+        // Collect enemies within radius for this specific player
+        for (entity, entity_transform, last_broadcast) in &mut query {
+            let distance = player_pos.distance(entity_transform.translation);
+            update_per_distance_reset(addr.addr, delta_secs, Some( last_broadcast ), distance);
         }
     }
 }
