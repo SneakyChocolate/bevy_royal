@@ -188,10 +188,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    let map_transform = Transform::from_xyz(0., 0., -35.)
-        .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
-        .with_scale(Vec3::splat(500.))
-    ;
+    let map_transform = map_transform();
 
     let normal = materials.add(Color::srgb(0., 1., 0.));
     let destroyed = materials.add(Color::srgb(5.0, 0.0, 0.0));

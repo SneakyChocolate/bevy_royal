@@ -643,10 +643,18 @@ fn setup(
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("map_shooter12.glb"),
         )),
-        Transform::from_xyz(0., 0., -35.)
-            .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(500.))
-        ,
+        map_transform(),
+    ));
+
+    commands.spawn((
+        ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
+        CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
+        RigidBody::Static,
+
+        SceneRoot(asset_server.load(
+            GltfAssetLabel::Scene(0).from_asset("house1.glb"),
+        )),
+        map_transform(),
     ));
 
     commands.spawn((
@@ -662,6 +670,7 @@ fn setup(
             .with_scale(Vec3::splat(30.))
         ,
     ));
+
 }
 
 fn spawn_enemies(

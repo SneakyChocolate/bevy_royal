@@ -483,3 +483,9 @@ impl NetComponent {
         }
     }
 }
+
+pub fn map_transform() -> Transform {
+   Transform::from_xyz(0., 0., -35.)
+        .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
+        .with_scale(Vec3::splat(500.))
+}
