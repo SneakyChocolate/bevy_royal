@@ -177,6 +177,7 @@ fn main() {
             rotate_player,
             player_movement_system,
             update_dead_color,
+            player_shoot_system,
         ))
         .run();
 }
@@ -285,7 +286,7 @@ fn player_movement_system(
             if keyboard.pressed(KeyCode::KeyS) { dir -= forward_2d; }
             if keyboard.pressed(KeyCode::KeyA) { dir += right_2d; }
             if keyboard.pressed(KeyCode::KeyD) { dir -= right_2d; }
-            if keyboard.pressed(KeyCode::Space) {
+            if keyboard.just_pressed(KeyCode::Space) {
                 outgoing_sender.0.send(ClientMessage::jump(*net_id)).unwrap();
             }
 
@@ -327,6 +328,30 @@ fn rotate_player(
 
         let net_id = net_id_map.0.get(&player_entity.0).expect("no entity found in map");
         outgoing_sender.0.send(ClientMessage::rotation(*net_id, new_rotation.into())).unwrap();
+    }
+}
+
+fn player_shoot_system(
+    mouse: Res<ButtonInput<MouseButton>>,
+    rotation_query: Single<(&ChildOf, &Transform), With<CameraSensitivity>>,
+    mut player_query: Query<(Entity, &mut Velocity, &Alive, &Transform), (With<Player>, With<Controlled>)>,
+    outgoing_sender: Res<OutgoingSender>,
+    net_id_map: Res<NetIDMap>,
+) {
+    if !mouse.just_pressed(MouseButton::Left) {
+        return;
+    }
+
+    let camera_transform = rotation_query.1;
+    let shot_direction = camera_transform.forward();
+
+    for (player_entity, mut velocity, alive, _transform) in player_query.iter_mut() {
+        if !alive.0 {
+            continue;
+        }
+        let net_id = net_id_map.0.get(&player_entity).unwrap();
+
+        outgoing_sender.0.send(ClientMessage::shoot(*net_id, ( *shot_direction ).into())).unwrap();
     }
 }
 

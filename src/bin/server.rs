@@ -277,6 +277,24 @@ fn receive_messages(
                 }
             },
 
+            ClientMessageInner::Shoot(player_net_id, direction) => {
+                let player_entity_option = entity_map.0.get(&player_net_id);
+                let mut player_exists = false;
+                match player_entity_option {
+                    Some(player_entity) => {
+                        if let Ok(( velocity, transform )) = player_query.get(*player_entity) {
+                            player_exists = true;
+                            info!("client shot");
+                            // TODO
+                        }
+                    },
+                    None => {},
+                }
+                if !player_exists {
+                    entity_map.0.remove(&player_net_id);
+                }
+            },
+
         }
     }
 }
