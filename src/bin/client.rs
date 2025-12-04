@@ -337,21 +337,36 @@ fn player_shoot_system(
     mut player_query: Query<(Entity, &mut Velocity, &Alive, &Transform), (With<Player>, With<Controlled>)>,
     outgoing_sender: Res<OutgoingSender>,
     net_id_map: Res<NetIDMap>,
+
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut standard_materials: ResMut<Assets<StandardMaterial>>,
 ) {
     if !mouse.just_pressed(MouseButton::Left) {
         return;
     }
 
     let camera_transform = rotation_query.1;
-    let shot_direction = camera_transform.forward();
+    let shot_direction = camera_transform.rotation * Vec3::Y;
 
-    for (player_entity, mut velocity, alive, _transform) in player_query.iter_mut() {
+    for (player_entity, mut velocity, alive, transform) in player_query.iter_mut() {
         if !alive.0 {
             continue;
         }
         let net_id = net_id_map.0.get(&player_entity).unwrap();
 
-        outgoing_sender.0.send(ClientMessage::shoot(*net_id, ( *shot_direction ).into())).unwrap();
+        let ray_origin = transform.translation;
+        let ray_dir = shot_direction.normalize();
+        let ray_length = 10.0;
+
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::new(0.05, 0.05, ray_length).mesh())),
+            MeshMaterial3d(standard_materials.add(Color::srgb(1., 0., 0.))),
+            Transform::from_translation(ray_origin + ray_dir * ray_length / 2.0)
+                .looking_to(ray_dir, Vec3::Z),
+        ));
+
+        outgoing_sender.0.send(ClientMessage::shoot(*net_id, ( shot_direction ).into())).unwrap();
     }
 }
 

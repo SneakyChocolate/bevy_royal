@@ -778,21 +778,16 @@ fn server_process_hits(
 ) {
     for (ray_entity, ray, hits, shooter) in &query {
         // Find first hit that is NOT the shooter
-        let valid_hit = hits
+        let valid_hits = hits
             .iter_sorted()
-            .find(|hit| hit.entity != shooter.owner);
+            .filter(|hit| hit.entity != shooter.owner);
 
-        if let Some(hit) = valid_hit {
+        for hit in valid_hits {
             let hit_entity = hit.entity;
 
             // Damage
             if let Ok(mut alive) = alive_q.get_mut(hit_entity) {
                 alive.0 = false;
-            }
-
-            // Knockback
-            if let Ok(mut vel) = velocity_q.get_mut(hit_entity) {
-                vel.0 += ray.direction.as_vec3() * 12.0;
             }
 
             info!(
