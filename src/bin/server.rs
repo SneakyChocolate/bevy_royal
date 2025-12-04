@@ -107,6 +107,7 @@ fn main() {
             receive_messages,
             apply_velocity_system,
             enemy_kill_system,
+            server_process_hits,
             broadcast_enemy_spawns,
             broadcast_player_spawns,
             (
@@ -157,6 +158,11 @@ struct PlayerLook(MyQuat);
 #[derive(Component)]
 pub struct UpdateAddress {
     addr: SocketAddr,
+}
+
+#[derive(Component)]
+struct Shooter {
+    owner: Entity,
 }
 
 type PlayerVelocityType = LinearVelocity;
@@ -285,7 +291,11 @@ fn receive_messages(
                         if let Ok(( velocity, transform )) = player_query.get(*player_entity) {
                             player_exists = true;
                             info!("client shot");
-                            // TODO
+
+                            commands.spawn((
+                                RayCaster::new(transform.translation, Dir3::new_unchecked(direction.into())),
+                                Shooter { owner: *player_entity },
+                            ));
                         }
                     },
                     None => {},
@@ -757,6 +767,42 @@ fn enemy_kill_system(
                 player_alive.0 = false;
             }
         }
+    }
+}
+
+fn server_process_hits(
+    mut commands: Commands,
+    query: Query<(Entity, &RayCaster, &RayHits, &Shooter)>,
+    mut alive_q: Query<&mut Alive>,
+    mut velocity_q: Query<&mut Velocity>,
+) {
+    for (ray_entity, ray, hits, shooter) in &query {
+        // Find first hit that is NOT the shooter
+        let valid_hit = hits
+            .iter_sorted()
+            .find(|hit| hit.entity != shooter.owner);
+
+        if let Some(hit) = valid_hit {
+            let hit_entity = hit.entity;
+
+            // Damage
+            if let Ok(mut alive) = alive_q.get_mut(hit_entity) {
+                alive.0 = false;
+            }
+
+            // Knockback
+            if let Ok(mut vel) = velocity_q.get_mut(hit_entity) {
+                vel.0 += ray.direction.as_vec3() * 12.0;
+            }
+
+            info!(
+                "Shooter {:?} hit {:?} at {}",
+                shooter.owner, hit_entity, hit.distance
+            );
+        }
+
+        // One-frame ray
+        commands.entity(ray_entity).despawn();
     }
 }
 
