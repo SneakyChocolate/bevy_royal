@@ -901,11 +901,11 @@ fn server_process_hits(
 ) {
     for (ray_entity, ray, hits, shooter) in &query {
         // Find first hit that is NOT the shooter
-        let valid_hits = hits
+        let valid_hit = hits
             .iter_sorted()
-            .filter(|hit| hit.entity != shooter.owner);
+            .find(|hit| hit.entity != shooter.owner);
 
-        for hit in valid_hits {
+        if let Some(hit) = valid_hit {
             let hit_entity = hit.entity;
 
             // Damage
