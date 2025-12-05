@@ -468,7 +468,7 @@ fn receive_messages(
                                 children![
                                     (
                                         PlayerLookAnchor, // spin this one on player look
-                                        Transform::default(),
+                                        Transform::from_xyz(0., 0.0, player_radius * 0.5),
                                         CameraSensitivity::default(),
                                         children![
 
@@ -491,7 +491,7 @@ fn receive_messages(
                                                     fov: 90.0_f32.to_radians(),
                                                     ..default()
                                                 }),
-                                                Transform::from_xyz(0.0, - player_radius * 2.5, player_radius * 1.5).looking_to(Vec3::Y, Vec3::Z),
+                                                Transform::from_xyz(0.0, 0., 0.).looking_to(Vec3::Y, Vec3::Z),
 
                                                 Tonemapping::TonyMcMapface,
                                                 Bloom::default(),
@@ -499,12 +499,12 @@ fn receive_messages(
                                             ),
 
                                             (
-                                                Transform::from_xyz(0.0, - player_radius * 6.5, player_radius * 5.5).looking_to(Vec3::Y, Vec3::Z),
+                                                Transform::from_xyz(0.0, 0., 0.).looking_to(Vec3::Y, Vec3::Z),
                                                 SpotLight {
                                                     shadows_enabled: true,
                                                     intensity: player_radius * 10000000.,
                                                     range: player_radius * 100.,
-                                                    shadow_depth_bias: 10.0,
+                                                    shadow_depth_bias: 1.0,
                                                     ..default()
                                                 },
                                             ),
