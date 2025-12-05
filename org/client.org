@@ -614,7 +614,7 @@ fn receive_messages(
                                                     shadows_enabled: true,
                                                     intensity: player_radius * 10000000.,
                                                     range: player_radius * 100.,
-                                                    shadow_depth_bias: 1.0,
+                                                    shadow_depth_bias: 0.1,
                                                     ..default()
                                                 },
                                             ),
