@@ -121,9 +121,6 @@ fn main() {
             ).chain(),
             broadcast_alive,
         ))
-        .add_systems(Update, (
-            fix_player_rotation,
-        ))
         .run();
 }
 
@@ -199,22 +196,24 @@ fn receive_messages(
                     // spawn player
                     let player_radius = 1.5;
                     let id = commands.spawn((
-                        Transform::from_xyz(0., 0., player_radius + 10.),
+                        Transform::from_xyz(0., 0., player_radius + 10.)
+                            .from_rotation_x(90_f32.to_radians()),
                         Player,
                         Alive(true),
                         Radius(player_radius),
-                        // PlayerVelocityType::new(Vec3::ZERO),
-                        LinearVelocity(Vec3::new(10., -10., 0.)),
-                        RigidBody::Dynamic,
-                        CollisionLayers::new([Layer::Player], [Layer::Boundary]),
-                        Collider::capsule(0.4, player_radius),
                         PlayerLook::default(),
-
                         Mesh3d(meshes.add(Sphere::new(player_radius))),
                         MeshMaterial3d(materials.add(Color::srgb(0., 1., 0.))),
                         UpdateAddress {addr},
                         PendingSpawn,
                         LastBroadcast(HashMap::new()),
+                    )).insert((
+                        LinearVelocity(Vec3::new(10., -10., 0.)),
+                        RigidBody::Dynamic,
+                        CollisionLayers::new([Layer::Player], [Layer::Boundary]),
+                        Collider::capsule(0.4, player_radius),
+                        LockedAxes::new().lock_rotation_x(),
+                        SweptCcd::default(),
                     )).id();
 
                     net_id_map.0.insert(id, id_counter.0);
@@ -657,7 +656,7 @@ fn setup(
     // sun
     commands.spawn((
         DirectionalLight {
-            illuminance: 320.0,
+            illuminance: 2000.0,
             ..default()
         },
         Transform::from_xyz(0.0, 2.0, 0.0).with_rotation(Quat::from_rotation_x(-std::f32::consts::PI / 4.)),
@@ -667,6 +666,7 @@ fn setup(
         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
         CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
         RigidBody::Static,
+        CollisionMargin(0.5),
 
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("map_shooter12.glb"),
@@ -798,13 +798,5 @@ fn server_process_hits(
 
         // One-frame ray
         commands.entity(ray_entity).despawn();
-    }
-}
-
-fn fix_player_rotation(
-    players: Query<&mut Transform, With<Player>>,
-) {
-    for mut transform in players {
-        transform.rotation = Quat::from_rotation_x(90_f32.to_radians());
     }
 }
