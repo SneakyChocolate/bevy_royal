@@ -197,7 +197,7 @@ fn receive_messages(
                     let player_radius = 1.5;
                     let id = commands.spawn((
                         Transform::from_xyz(0., 0., player_radius + 10.)
-                            .from_rotation_x(90_f32.to_radians()),
+                            .with_rotation(Quat::from_rotation_x(90_f32.to_radians())),
                         Player,
                         Alive(true),
                         Radius(player_radius),
@@ -212,7 +212,7 @@ fn receive_messages(
                         RigidBody::Dynamic,
                         CollisionLayers::new([Layer::Player], [Layer::Boundary]),
                         Collider::capsule(0.4, player_radius),
-                        LockedAxes::new().lock_rotation_x(),
+                        LockedAxes::ROTATION_LOCKED,
                         SweptCcd::default(),
                     )).id();
 
