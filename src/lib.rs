@@ -24,7 +24,7 @@ pub struct Radius(pub f32);
 pub struct Player;
 
 #[derive(Component, Clone, Copy)]
-pub struct Alive(pub bool);
+pub struct Health(pub f32);
 
 #[derive(Component, Clone, Copy)]
 pub struct Enemy;
@@ -170,9 +170,9 @@ pub struct VelocityPackage {
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
-pub struct AlivePackage {
+pub struct HealthPackage {
     pub net_id: NetIDType,
-    pub alive: bool,
+    pub health: f32,
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
@@ -201,10 +201,10 @@ impl ServerMessage {
             message: ServerMessageInner::Confirm(id),
         }
     }
-    pub fn update_alives(packages: Vec<AlivePackage>) -> Self {
+    pub fn update_healths(packages: Vec<HealthPackage>) -> Self {
         Self {
             reliable: 1,
-            message: ServerMessageInner::UpdateAlives(packages),
+            message: ServerMessageInner::UpdateHealths(packages),
         }
     }
     pub fn spawn_entities(reliable: usize, packages: Vec<EntityPackage>) -> Self {
@@ -247,7 +247,7 @@ pub enum ServerMessageInner {
     UpdatePositions(Vec<PositionPackage>),
     UpdatePlayerLooks(Vec<PlayerLookPackage>),
     UpdateVelocities(Vec<VelocityPackage>),
-    UpdateAlives(Vec<AlivePackage>),
+    UpdateHealths(Vec<HealthPackage>),
     Confirm(usize),
 }
 
@@ -363,7 +363,7 @@ pub enum NetComponent {
         g: f32,
         b: f32,
     },
-    Alive(bool),
+    Health(f32),
     Player,
     Enemy,
     Radius(f32),
@@ -399,9 +399,9 @@ impl Into<NetComponent> for StandardMaterial {
         }
     }
 }
-impl Into<NetComponent> for Alive {
+impl Into<NetComponent> for Health {
     fn into(self) -> NetComponent {
-        NetComponent::Alive(self.0)
+        NetComponent::Health(self.0)
     }
 }
 impl Into<NetComponent> for Player {
@@ -457,8 +457,8 @@ impl NetComponent {
             NetComponent::ColorMaterial { r, g, b } => {
                 entity.insert(MeshMaterial3d(materials.add(Color::srgb(*r, *g, *b))));
             },
-            NetComponent::Alive(v) => {
-                entity.insert(Alive(*v));
+            NetComponent::Health(v) => {
+                entity.insert(Health(*v));
             },
             NetComponent::Player => {
                 entity.insert(Player);

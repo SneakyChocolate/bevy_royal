@@ -119,7 +119,7 @@ fn main() {
                 ),
                 update_per_distance_setter_reset,
             ).chain(),
-            broadcast_alive,
+            broadcast_health,
         ))
         .run();
 }
@@ -199,7 +199,7 @@ fn receive_messages(
                         Transform::from_xyz(0., 0., player_radius + 10.)
                             .with_rotation(Quat::from_rotation_x(90_f32.to_radians())),
                         Player,
-                        Alive(true),
+                        Health(100.),
                         Radius(player_radius),
                         PlayerLook::default(),
                         Mesh3d(meshes.add(Sphere::new(player_radius))),
@@ -314,12 +314,12 @@ fn broadcast_player_spawns(
     materials: ResMut<Assets<StandardMaterial>>,
     net_id_map: ResMut<NetIDMap>,
     client_addresses: Query<(Entity, &UpdateAddress), With<PendingSpawn>>,
-    player_query: Query<(Entity, &Transform, &PlayerVelocityType, &MeshMaterial3d<StandardMaterial>, &Player, &Alive, &Radius)>,
+    player_query: Query<(Entity, &Transform, &PlayerVelocityType, &MeshMaterial3d<StandardMaterial>, &Player, &Health, &Radius)>,
 ) {
     for (id, addr) in client_addresses.iter() {
         // println!("client spawn");
         let mut entity_packages = Vec::<EntityPackage>::new();
-        for (entity, transform, velocity, meshmaterial3d, player, alive, radius) in &player_query {
+        for (entity, transform, velocity, meshmaterial3d, player, health, radius) in &player_query {
             println!("player broadcast");
             let net_id = net_id_map.0.get(&entity).unwrap();
             entity_packages.push(EntityPackage { net_id: *net_id, components: vec![
@@ -328,7 +328,7 @@ fn broadcast_player_spawns(
                 (*velocity).into(),
                 (materials.get(meshmaterial3d).unwrap().clone()).into(),
                 (*player).into(),
-                (*alive).into(),
+                (*health).into(),
                 (*radius).into(),
                 NetComponent::SpotLight(radius.0),
             ] });
@@ -373,7 +373,7 @@ fn broadcast_enemy_spawns(
 const POSITION_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PositionPackage>() as f32).floor() as usize;
 const VELOCITY_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<VelocityPackage>() as f32).floor() as usize;
 const PLAYER_LOOK_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<PlayerLookPackage>() as f32).floor() as usize;
-const ALIVE_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<AlivePackage>() as f32).floor() as usize;
+const HEALTH_PACKAGES_PER_MESSAGE: usize = (1000. / std::mem::size_of::<HealthPackage>() as f32).floor() as usize;
 
 fn update_per_distance_check(lb: f32, distance: f32) -> bool {
    lb >= distance / 500. + 0.01
@@ -464,10 +464,10 @@ fn update_per_distance_setter_reset(
     }
 }
 
-fn broadcast_alive(
+fn broadcast_health(
     outgoing_sender: Res<OutgoingSender>,
     client_addresses: Query<(Entity, &UpdateAddress, &Transform)>,
-    mut query: Query<(Entity, &Alive), Changed<Alive>>,
+    mut query: Query<(Entity, &Health), Changed<Health>>,
     net_id_map: ResMut<NetIDMap>,
     time: Res<Time>,
 ) {
@@ -478,21 +478,21 @@ fn broadcast_alive(
         let player_pos = player_transform.translation;
 
         // Collect enemies within radius for this specific player
-        let nearby_entities: Vec<AlivePackage> = query
+        let nearby_entities: Vec<HealthPackage> = query
             .iter_mut()
-            .filter_map(|(entity, entity_alive)| {
+            .filter_map(|(entity, entity_health)| {
                 let net_id = net_id_map.0.get(&entity)?;
 
-                Some(AlivePackage {
+                Some(HealthPackage {
                     net_id: *net_id,
-                    alive: entity_alive.0,
+                    health: entity_health.0,
                 })
             })
             .collect();
 
         // Split into chunks and send
-        for chunk in nearby_entities.chunks(ALIVE_PACKAGES_PER_MESSAGE) {
-            let message = ServerMessage::update_alives(chunk.to_vec());
+        for chunk in nearby_entities.chunks(HEALTH_PACKAGES_PER_MESSAGE) {
+            let message = ServerMessage::update_healths(chunk.to_vec());
             outgoing_sender.0.send((addr.addr, message)).unwrap();
         }
     }
@@ -757,14 +757,14 @@ fn apply_velocity_system(
 }
 
 fn enemy_kill_system(
-    players: Query<(&mut Alive, &Transform, &Radius), With<Player>>,
+    players: Query<(&mut Health, &Transform, &Radius), With<Player>>,
     enemies: Query<(&Transform, &Radius), With<Enemy>>,
 ) {
-    for (mut player_alive, player_pos, player_radius) in players {
+    for (mut player_health, player_pos, player_radius) in players {
         for (enemy_pos, enemy_radius) in enemies {
             let distance = player_pos.translation.distance(enemy_pos.translation);
             if distance - player_radius.0 - enemy_radius.0 <= 0. {
-                player_alive.0 = false;
+                player_health.0 = 0.;
             }
         }
     }
@@ -773,7 +773,7 @@ fn enemy_kill_system(
 fn server_process_hits(
     mut commands: Commands,
     query: Query<(Entity, &RayCaster, &RayHits, &Shooter)>,
-    mut alive_q: Query<&mut Alive>,
+    mut health_q: Query<&mut Health>,
     mut velocity_q: Query<&mut Velocity>,
 ) {
     for (ray_entity, ray, hits, shooter) in &query {
@@ -786,8 +786,11 @@ fn server_process_hits(
             let hit_entity = hit.entity;
 
             // Damage
-            if let Ok(mut alive) = alive_q.get_mut(hit_entity) {
-                alive.0 = false;
+            if let Ok(mut health) = health_q.get_mut(hit_entity) {
+                health.0 -= 10.;
+                if health.0 < 0. {
+                    health.0 = 0.;
+                }
             }
 
             info!(

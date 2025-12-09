@@ -262,14 +262,14 @@ fn cursor_position_system(
 fn player_movement_system(
     keyboard: Res<ButtonInput<KeyCode>>,
     rotation_query: Single<(&ChildOf, &Transform), With<CameraSensitivity>>,
-    mut player_query: Query<(Entity, &mut Velocity, &Alive, &Transform), (With<Player>, With<Controlled>)>,
+    mut player_query: Query<(Entity, &mut Velocity, &Health, &Transform), (With<Player>, With<Controlled>)>,
     outgoing_sender: Res<OutgoingSender>,
     net_id_map: Res<NetIDMap>,
 ) {
     let speed = 8.0;
     let camera_transform = rotation_query.1;
 
-    for (player_entity, mut velocity, alive, _transform) in player_query.iter_mut() {
+    for (player_entity, mut velocity, health, _transform) in player_query.iter_mut() {
         let (yaw, _pitch, _roll) = camera_transform.rotation.to_euler(EulerRot::ZXY);
 
         let yaw_rotation = Quat::from_axis_angle(Vec3::Z, yaw);
@@ -280,7 +280,7 @@ fn player_movement_system(
         let right_2d = Vec2::new(-forward_2d.y, forward_2d.x);
         let net_id = net_id_map.0.get(&player_entity).unwrap();
 
-        if alive.0 {
+        if health.0 != 0. {
             let mut dir = Vec2::ZERO;
 
             if keyboard.pressed(KeyCode::KeyW) { dir += forward_2d; }
@@ -335,7 +335,7 @@ fn rotate_player(
 fn player_shoot_system(
     mouse: Res<ButtonInput<MouseButton>>,
     rotation_query: Single<(&ChildOf, &Transform), With<CameraSensitivity>>,
-    mut player_query: Query<(Entity, &mut Velocity, &Alive, &Transform), (With<Player>, With<Controlled>)>,
+    mut player_query: Query<(Entity, &mut Velocity, &Health, &Transform), (With<Player>, With<Controlled>)>,
     outgoing_sender: Res<OutgoingSender>,
     net_id_map: Res<NetIDMap>,
 
@@ -350,8 +350,8 @@ fn player_shoot_system(
     let camera_transform = rotation_query.1;
     let shot_direction = camera_transform.rotation * Vec3::Y;
 
-    for (player_entity, mut velocity, alive, transform) in player_query.iter_mut() {
-        if !alive.0 {
+    for (player_entity, mut velocity, health, transform) in player_query.iter_mut() {
+        if health.0 == 0. {
             continue;
         }
         let net_id = net_id_map.0.get(&player_entity).unwrap();
@@ -382,7 +382,7 @@ fn receive_messages(
     mut transform_query: Query<(Entity, &mut Transform, Has<Controlled>)>,
     mut anchor_query: Query<(Entity, &PlayerLookAnchor)>,
     mut velocity_query: Query<(Entity, &mut LinearVelocity, Has<Controlled>)>,
-    mut alive_query: Query<(Entity, &mut Alive)>,
+    mut health_query: Query<(Entity, &mut Health)>,
 ) {
 
     loop {
@@ -462,7 +462,7 @@ fn receive_messages(
                                 Transform::default(),
                                 Velocity(Vec3::ZERO),
                                 Player,
-                                Alive(true),
+                                Health(100.),
                                 Radius(player_radius),
                                 Controlled,
 
@@ -565,11 +565,11 @@ fn receive_messages(
                         }
                     },
 
-                    ServerMessageInner::UpdateAlives(packages) => {
+                    ServerMessageInner::UpdateHealths(packages) => {
                         for package in packages {
                             if let Some(entity) = entity_map.0.get(&package.net_id) {
-                                if let Ok((_, mut alive)) = alive_query.get_mut(*entity) {
-                                    alive.0 = package.alive;
+                                if let Ok((_, mut health)) = health_query.get_mut(*entity) {
+                                    health.0 = package.health;
                                 }
                             }
                         }
@@ -595,11 +595,11 @@ fn cursor_lock(
 // TODO figure out why this only works without the player componnent
 fn update_dead_color(
     mats: Res<PlayerMaterials>,
-    mut alive_q: Query<( Entity, &Alive, &Children ), Changed<Alive>>,
+    mut health_q: Query<( Entity, &Health, &Children ), Changed<Health>>,
     mut material_q: Query<&mut MeshMaterial3d<StandardMaterial>>,
 ) {
-    for (entity, alive, children) in &mut alive_q {
-        if alive.0 {
+    for (entity, health, children) in &mut health_q {
+        if health.0 != 0. {
             if let Ok(mut mat) = material_q.get_mut(entity) {
                 mat.0 = mats.normal.clone();
             }
