@@ -731,28 +731,28 @@ fn cursor_lock(
 #+begin_src rust
 // TODO figure out why this only works without the player componnent
 fn update_dead_color(
-    mats: Res<PlayerMaterials>,
-    mut health_q: Query<( Entity, &Health, &Children ), Changed<Health>>,
-    mut material_q: Query<&mut MeshMaterial3d<StandardMaterial>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    health_q: Query<(Entity, &Health, &Children), Changed<Health>>,
+    material_q: Query<&MeshMaterial3d<StandardMaterial>>,
 ) {
-    for (entity, health, children) in &mut health_q {
-        if health.0 != 0. {
-            if let Ok(mut mat) = material_q.get_mut(entity) {
-                mat.0 = mats.normal.clone();
-            }
-            for child in children.iter() {
-                if let Ok(mut mat) = material_q.get_mut(child) {
-                    mat.0 = mats.normal.clone();
-                }
+    for (entity, health, children) in &health_q {
+        let health_percent = (health.0 / 100.0).clamp(0.0, 1.0);
+        let color = Color::srgb(
+            1.0 - health_percent,
+            health_percent,
+            0.0,
+        );
+
+        if let Ok(mat_handle) = material_q.get(entity) {
+            if let Some(material) = materials.get_mut(mat_handle.0.id()) {
+                material.base_color = color;
             }
         }
-        else {
-            if let Ok(mut mat) = material_q.get_mut(entity) {
-                mat.0 = mats.destroyed.clone();
-            }
-            for child in children.iter() {
-                if let Ok(mut mat) = material_q.get_mut(child) {
-                    mat.0 = mats.destroyed.clone();
+
+        for child in children.iter() {
+            if let Ok(mat_handle) = material_q.get(child) {
+                if let Some(material) = materials.get_mut(mat_handle.0.id()) {
+                    material.base_color = color;
                 }
             }
         }
