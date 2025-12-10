@@ -462,7 +462,7 @@ impl Into<NetComponent> for Radius {
 }
 
 #[derive(Component)]
-pub struct PlayerLookAnchor;
+pub struct PlayerLookAnchor(pub Entity);
 
 impl NetComponent {
     pub fn apply_to(
@@ -511,22 +511,26 @@ impl NetComponent {
                 entity.insert(Radius(*v));
             },
             NetComponent::SpotLight(player_radius) => {
+                let mut look_anchor_id = None;
+
                 entity.with_children(|parent| {
-                    parent.spawn((
-                        PlayerLookAnchor,
+                    let id = parent.spawn((
                         Transform::default(),
                         children![(
-                            Transform::from_xyz(0.0, - player_radius * 6.5, player_radius * 5.5).looking_to(Vec3::Y, Vec3::Z),
+                            Transform::from_xyz(0.0, 0., 0.).looking_to(Vec3::Y, Vec3::Z),
                             SpotLight {
                                 shadows_enabled: true,
                                 intensity: player_radius * 10000000.,
                                 range: player_radius * 100.,
-                                shadow_depth_bias: 10.0,
+                                shadow_depth_bias: 0.1,
                                 ..default()
                             },
                         )]
-                    ));
+                    )).id();
+
+                    look_anchor_id = Some(id);
                 });
+                entity.insert(PlayerLookAnchor(look_anchor_id.unwrap()));
             }
         }
     }
