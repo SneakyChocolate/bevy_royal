@@ -527,17 +527,18 @@ fn receive_messages(
                     },
 
                     ServerMessageInner::UpdatePlayerLooks(packages) => {
-                        // TODO
-                        // for package in packages {
-                        //     if let Some(entity) = entity_map.0.get(&position_package.net_id) {
-                        //         if let Ok((_, mut transform, controlled)) = transform_query.get_mut(*entity) {
-                        //             transform.translation = position_package.position.clone().into();
-                        //             if !controlled {
-                        //                 transform.rotation = position_package.rotation.clone().into();
-                        //             }
-                        //         }
-                        //     }
-                        // }
+                        // FIXME
+                        for package in packages {
+                            if let Some(player_entity) = entity_map.0.get(&package.net_id) {
+                                let anchor = if let Ok(anchor) = anchor_query.get(*player_entity) { anchor } else {continue;};
+                                let entity = anchor.0;
+                                if let Ok((_, mut transform, controlled)) = transform_query.get_mut(entity) {
+                                    if !controlled {
+                                        transform.rotation = package.rotation.clone().into();
+                                    }
+                                }
+                            }
+                        }
                     },
 
                     ServerMessageInner::UpdatePositions(position_packages) => {
