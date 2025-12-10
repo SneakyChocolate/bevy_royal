@@ -655,13 +655,14 @@ fn receive_messages(
 *** update player look
 #+begin_src rust
                     ServerMessageInner::UpdatePlayerLooks(packages) => {
-                        // FIXME
+                        // FIXME its setting the rotation but nothing visible
                         for package in packages {
                             if let Some(player_entity) = entity_map.0.get(&package.net_id) {
                                 let anchor = if let Ok(anchor) = anchor_query.get(*player_entity) { anchor } else {continue;};
                                 let entity = anchor.0;
                                 if let Ok((_, mut transform, controlled)) = transform_query.get_mut(entity) {
                                     if !controlled {
+                                        info!("set rotation to {:?}", package.rotation);
                                         transform.rotation = package.rotation.clone().into();
                                     }
                                 }
