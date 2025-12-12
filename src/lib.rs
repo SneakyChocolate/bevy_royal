@@ -536,6 +536,7 @@ impl Plugin for UnixTimePlugin {
     fn build(&self, app: &mut App) {
         app
             .insert_resource(UnixTime(0))
+            .add_systems(Update, update_unix_time_system)
         ;
     }
 }

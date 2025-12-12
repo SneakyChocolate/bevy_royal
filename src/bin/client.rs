@@ -32,6 +32,7 @@ struct PlayerMaterials {
 struct Past(RingBuf<TimeStamp>);
 #[derive(Debug)]
 struct TimeStamp {
+    unix_time: u64,
     position: Vec3,
 }
 
@@ -702,6 +703,7 @@ fn update_past(
     mut past_q: Query<( &mut Past, &Transform )>,
     mut last_update_past: ResMut<LastUpdatePast>,
     time: Res<Time>,
+    unix_time: Res<UnixTime>,
 ) {
     last_update_past.0 += time.delta_secs();
     if last_update_past.0 < 0.1 {return;}
@@ -709,7 +711,9 @@ fn update_past(
 
     for (mut past, transform) in &mut past_q {
         past.0.push(TimeStamp {
+            unix_time: unix_time.0,
             position: transform.translation.clone(),
         });
+        info!("{:?}", unix_time.0);
     }
 }
