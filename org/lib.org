@@ -249,10 +249,10 @@ impl ServerMessage {
             message: ServerMessageInner::UpdateEntities(packages),
         }
     }
-    pub fn update_positions(packages: Vec<PositionPackage>) -> Self {
+    pub fn update_positions(unix_time: u64, packages: Vec<PositionPackage>) -> Self {
         Self {
             reliable: 0,
-            message: ServerMessageInner::UpdatePositions(packages),
+            message: ServerMessageInner::UpdatePositions{unix_time, packages},
         }
     }
     pub fn update_velocities(packages: Vec<VelocityPackage>) -> Self {
@@ -274,7 +274,10 @@ pub enum ServerMessageInner {
     Ok(NetIDType), // the id of the player so that it knows which id it is
     SpawnEntities(Vec<EntityPackage>),
     UpdateEntities(Vec<EntityPackage>),
-    UpdatePositions(Vec<PositionPackage>),
+    UpdatePositions {
+        unix_time: u64,
+        packages: Vec<PositionPackage>,
+    },
     UpdatePlayerLooks(Vec<PlayerLookPackage>),
     UpdateVelocities(Vec<VelocityPackage>),
     UpdateHealths(Vec<HealthPackage>),

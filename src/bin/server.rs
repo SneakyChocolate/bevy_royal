@@ -545,6 +545,7 @@ fn broadcast_positions(
     mut query: Query<(Entity, &Transform, Option<&LastBroadcast>)>,
     net_id_map: ResMut<NetIDMap>,
     time: Res<Time>,
+    unix_time: Res<UnixTime>,
 ) {
     let delta_secs = time.delta_secs();
 
@@ -574,7 +575,7 @@ fn broadcast_positions(
 
         // Split into chunks and send
         for chunk in nearby_entities.chunks(POSITION_PACKAGES_PER_MESSAGE) {
-            let message = ServerMessage::update_positions(chunk.to_vec());
+            let message = ServerMessage::update_positions(unix_time.0, chunk.to_vec());
             outgoing_sender.0.send((addr.addr, message)).unwrap();
         }
     }

@@ -553,8 +553,8 @@ fn receive_messages(
                         }
                     },
 
-                    ServerMessageInner::UpdatePositions(position_packages) => {
-                        for position_package in position_packages {
+                    ServerMessageInner::UpdatePositions{unix_time, packages} => {
+                        for position_package in packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
                                 if let Ok((_, mut transform, controlled)) = transform_query.get_mut(*entity) {
                                     transform.translation = position_package.position.clone().into();
