@@ -30,6 +30,7 @@ struct PlayerMaterials {
 
 #[derive(Component)]
 struct Past(RingBuf<TimeStamp>);
+
 #[derive(Debug)]
 struct TimeStamp {
     unix_time: u64,
@@ -146,7 +147,7 @@ fn main() {
             let mut removed = Vec::<ServerMessage>::new();
             delay_pool.retain_mut(|(d, sm)| {
                 *d += delta_secs;
-                if *d >= 0.0 { // TODO do something cool with that delay
+                if *d >= 0.2 { // TODO do something cool with that delay
                     removed.push(sm.clone());
                     false
                 }
@@ -272,7 +273,7 @@ fn cursor_position_system(
 fn player_movement_system(
     keyboard: Res<ButtonInput<KeyCode>>,
     rotation_query: Single<(&ChildOf, &Transform), With<CameraSensitivity>>,
-    mut player_query: Query<(Entity, &mut Velocity, &Health, &Transform), (With<Player>, With<Controlled>)>,
+    mut player_query: Query<(Entity, &mut LinearVelocity, &Health, &Transform), (With<Player>, With<Controlled>)>,
     outgoing_sender: Res<OutgoingSender>,
     net_id_map: Res<NetIDMap>,
 ) {
@@ -345,7 +346,7 @@ fn rotate_player(
 fn player_shoot_system(
     mouse: Res<ButtonInput<MouseButton>>,
     rotation_query: Single<(&ChildOf, &Transform), With<CameraSensitivity>>,
-    mut player_query: Query<(Entity, &mut Velocity, &Health, &Transform), (With<Player>, With<Controlled>)>,
+    mut player_query: Query<(Entity, &mut LinearVelocity, &Health, &Transform), (With<Player>, With<Controlled>)>,
     outgoing_sender: Res<OutgoingSender>,
     net_id_map: Res<NetIDMap>,
 
@@ -389,10 +390,11 @@ fn receive_messages(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
-    mut transform_query: Query<(Entity, &mut Transform, Has<Controlled>)>,
+    mut transform_query: Query<(Entity, &mut Transform, Has<Controlled>, Option<&Past>)>,
     mut anchor_query: Query<(Entity, &PlayerLookAnchor)>,
     mut velocity_query: Query<(Entity, &mut LinearVelocity, Has<Controlled>)>,
     mut health_query: Query<(Entity, &mut Health)>,
+    unix_time: Res<UnixTime>,
 ) {
 
     loop {
@@ -511,13 +513,19 @@ fn receive_messages(
 
                             let id = commands.spawn((
                                 Transform::default(),
-                                Velocity(Vec3::ZERO),
                                 Player,
                                 PlayerLookAnchor(look_anchor_entity),
                                 Health(100.),
                                 Radius(player_radius),
                                 Controlled,
                                 Past(RingBuf::new(10)),
+
+                                LinearVelocity(Vec3::ZERO),
+                                RigidBody::Dynamic,
+                                CollisionLayers::new([Layer::Player], [Layer::Boundary]),
+                                Collider::capsule(0.4, player_radius),
+                                LockedAxes::ROTATION_LOCKED,
+                                SweptCcd::default(),
 
                                 children![
 
@@ -543,9 +551,8 @@ fn receive_messages(
                             if let Some(player_entity) = entity_map.0.get(&package.net_id) {
                                 let anchor = if let Ok(anchor) = anchor_query.get(*player_entity) { anchor } else {continue;};
                                 let entity = anchor.0;
-                                if let Ok((_, mut transform, controlled)) = transform_query.get_mut(entity) {
+                                if let Ok((_, mut transform, controlled, _)) = transform_query.get_mut(entity) {
                                     if !controlled {
-                                        // info!("set rotation to {:?}", package.rotation);
                                         transform.rotation = package.rotation.clone().into();
                                     }
                                 }
@@ -553,10 +560,10 @@ fn receive_messages(
                         }
                     },
 
-                    ServerMessageInner::UpdatePositions{unix_time, packages} => {
+                    ServerMessageInner::UpdatePositions{unix_time: message_unix_time, packages} => {
                         for position_package in packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
-                                if let Ok((_, mut transform, controlled)) = transform_query.get_mut(*entity) {
+                                if let Ok((_, mut transform, controlled, past_option)) = transform_query.get_mut(*entity) {
                                     transform.translation = position_package.position.clone().into();
                                     if !controlled {
                                         transform.rotation = position_package.rotation.clone().into();
@@ -714,6 +721,5 @@ fn update_past(
             unix_time: unix_time.0,
             position: transform.translation.clone(),
         });
-        info!("{:?}", unix_time.0);
     }
 }
