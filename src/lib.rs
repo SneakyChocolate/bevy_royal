@@ -502,6 +502,7 @@ pub fn map_transform() -> Transform {
         .with_scale(Vec3::splat(500.))
 }
 
+#[derive(Debug)]
 pub struct RingBuf<T> {
     inner: VecDeque<T>,
     cap: usize,
