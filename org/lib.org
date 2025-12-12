@@ -15,6 +15,7 @@ pub use bevy::{
     prelude::*,
 };
 use std::net::{SocketAddr, UdpSocket};
+pub use std::collections::VecDeque;
 #+end_src
 
 ** components
@@ -543,5 +544,33 @@ pub fn map_transform() -> Transform {
    Transform::from_xyz(0., 0., -35.)
         .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
         .with_scale(Vec3::splat(500.))
+}
+#+end_src
+
+** ring buffer
+#+begin_src rust
+pub struct RingBuf<T> {
+    inner: VecDeque<T>,
+    cap: usize,
+}
+
+impl<T> RingBuf<T> {
+    pub fn new(cap: usize) -> Self {
+        Self {
+            inner: VecDeque::with_capacity(cap),
+            cap,
+        }
+    }
+
+    pub fn push(&mut self, item: T) {
+        if self.inner.len() == self.cap {
+            self.inner.pop_front();
+        }
+        self.inner.push_back(item);
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.inner.iter()
+    }
 }
 #+end_src
