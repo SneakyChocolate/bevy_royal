@@ -98,6 +98,7 @@ fn main() {
         .insert_resource(ClientPlayerMap::default())
         .add_plugins(DefaultPlugins)
         .add_plugins(PhysicsPlugins::default())
+        .add_plugins(UnixTimePlugin)
         .add_systems(Startup, (
             setup,
             spawn_enemies,

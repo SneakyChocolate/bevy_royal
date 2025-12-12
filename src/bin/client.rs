@@ -173,6 +173,7 @@ fn main() {
         // .add_plugins(EguiPlugin::default())
         // .add_plugins(WorldInspectorPlugin::new())
         .add_plugins(UpdatePastPlugin)
+        .add_plugins(UnixTimePlugin)
         .add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, (
             setup,
@@ -710,6 +711,5 @@ fn update_past(
         past.0.push(TimeStamp {
             position: transform.translation.clone(),
         });
-        info!("{:?}", past.0);
     }
 }

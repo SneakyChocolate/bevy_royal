@@ -575,3 +575,29 @@ impl<T> RingBuf<T> {
     }
 }
 #+end_src
+
+** unix time plugin
+#+begin_src rust
+#[derive(Resource)]
+pub struct UnixTime(pub u64);
+
+pub struct UnixTimePlugin;
+impl Plugin for UnixTimePlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .insert_resource(UnixTime(0))
+        ;
+    }
+}
+
+fn update_unix_time_system(
+    mut unix_time: ResMut<UnixTime>,
+) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+
+    unix_time.0 = now;
+}
+#+end_src
