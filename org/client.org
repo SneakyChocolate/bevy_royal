@@ -479,7 +479,7 @@ fn receive_messages(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut entity_map: ResMut<EntityMap>,
     mut net_id_map: ResMut<NetIDMap>,
-    mut transform_query: Query<(Entity, &mut Transform, Has<Controlled>, Option<&Past>)>,
+    mut transform_query: Query<(Entity, &mut Transform, Has<Controlled>, Option<&mut Past>)>,
     mut anchor_query: Query<(Entity, &PlayerLookAnchor)>,
     mut velocity_query: Query<(Entity, &mut LinearVelocity, Has<Controlled>)>,
     mut health_query: Query<(Entity, &mut Health)>,
@@ -697,13 +697,15 @@ fn receive_messages(
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
                                 if let Ok((_, mut transform, controlled, past_option)) = transform_query.get_mut(*entity) {
                                     // if the entity has past storage (which is only the client itself because of client prediction)
-                                    if let Some(past) = past_option {
+                                    if let Some(mut past) = past_option {
                                         // get the lower and upper timestamps from the past, interpolate the position to the received message timestamp and calculate the difference between that position and the position in the received message. that is the ammount that the past was wrongly calculated and needs to be fixed now (add diff to current pos)
-                                        if let Some(( lower_index, lower_time_stamp )) = past.0
+                                        let lower_data_option = past.0
                                             .iter()
                                             .enumerate()
-                                            .find(|(i, time_stamp)| {time_stamp.unix_time < message_unix_time})
-                                        {
+                                            .find(|(i, time_stamp)| time_stamp.unix_time <= message_unix_time)
+                                            .map(|(idx, ts)| (idx, ts.clone()));
+
+                                        if let Some(( lower_index, lower_time_stamp )) = lower_data_option {
                                             // there can be a case where the past doesnt have a upper timestamp. if so, just take the present and interpolate between lower timestamp and present
                                             let upper_time_stamp =
                                                 if lower_index > 0 {
@@ -724,6 +726,13 @@ fn receive_messages(
                                             let past_position = lower_time_stamp.position
                                                 .lerp(upper_time_stamp.position, lerp_t as f32);
                                             let applied_correction = message_position - past_position;
+
+                                            for i in 0..=lower_index {
+                                                if let Some(timestamp) = past.0.get_mut(i) {
+                                                    timestamp.position += applied_correction;
+                                                }
+                                            }
+
                                             transform.translation += applied_correction;
                                             // transform.translation = position_package.position.clone().into();
                                         }
