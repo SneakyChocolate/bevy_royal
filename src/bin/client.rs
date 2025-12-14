@@ -571,23 +571,36 @@ fn receive_messages(
                                             .iter()
                                             .enumerate()
                                             .find(|(i, time_stamp)| {time_stamp.unix_time < message_unix_time})
+                                            // FIXME unwrap is panicing
                                             .unwrap()
                                             .clone()
                                         ;
 
                                         // there can be a case where the past doesnt have a upper timestamp. if so, just take the present and interpolate between lower timestamp and present
-                                        let upper_time_stamp = if lower_index < 0 {
-                                            past.0.get(lower_index + 1).unwrap().clone()
-                                        }
-                                        else {
-                                            TimeStamp {
-                                                unix_time: unix_time.0,
-                                                position: transform.translation,
+                                        let upper_time_stamp =
+                                            if lower_index < 0 {
+                                                past.0.get(lower_index + 1).unwrap().clone()
                                             }
-                                        };
-                                    }
+                                            else {
+                                                TimeStamp {
+                                                    unix_time: unix_time.0,
+                                                    position: transform.translation,
+                                                }
+                                            }
+                                        ;
 
-                                    transform.translation = position_package.position.clone().into();
+                                        let lerp_t = (message_unix_time - lower_time_stamp.unix_time) /
+                                            (upper_time_stamp.unix_time - lower_time_stamp.unix_time)
+                                        ;
+                                        let message_position: Vec3 = position_package.position.clone().into();
+                                        let past_position = lower_time_stamp.position
+                                            .lerp(upper_time_stamp.position, lerp_t as f32);
+                                        let applied_correction = message_position - past_position;
+                                        transform.translation += applied_correction;
+                                    }
+                                    else {
+                                        transform.translation = position_package.position.clone().into();
+                                    }
                                     if !controlled {
                                         transform.rotation = position_package.rotation.clone().into();
                                     }
