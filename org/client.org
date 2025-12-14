@@ -700,18 +700,18 @@ fn receive_messages(
                                 if let Ok((_, mut transform, controlled, past_option)) = transform_query.get_mut(*entity) {
                                     // if the entity has past storage (which is only the client itself because of client prediction)
                                     if let Some(mut past) = past_option {
-                                        // get the lower and upper timestamps from the past, interpolate the position to the received message timestamp and calculate the difference between that position and the position in the received message. that is the ammount that the past was wrongly calculated and needs to be fixed now (add diff to current pos)
-                                        let lower_data_option = past.0
+                                        // get the older and newer timestamps from the past, interpolate the position to the received message timestamp and calculate the difference between that position and the position in the received message. that is the ammount that the past was wrongly calculated and needs to be fixed now (add diff to current pos)
+                                        let older_data_option = past.0
                                             .iter()
                                             .enumerate()
                                             .find(|(i, time_stamp)| time_stamp.unix_time <= message_unix_time)
                                             .map(|(idx, ts)| (idx, ts.clone()));
 
-                                        if let Some(( lower_index, lower_time_stamp )) = lower_data_option {
-                                            // there can be a case where the past doesnt have a upper timestamp. if so, just take the present and interpolate between lower timestamp and present
-                                            let upper_time_stamp =
-                                                if lower_index > 0 {
-                                                    past.0.get(lower_index - 1).unwrap().clone()
+                                        if let Some(( older_index, older_time_stamp )) = older_data_option {
+                                            // there can be a case where the past doesnt have a newer timestamp. if so, just take the present and interpolate between older timestamp and present
+                                            let newer_time_stamp =
+                                                if older_index > 0 {
+                                                    past.0.get(older_index - 1).unwrap().clone()
                                                 }
                                                 else {
                                                     TimeStamp {
@@ -721,15 +721,15 @@ fn receive_messages(
                                                 }
                                             ;
 
-                                            let lerp_t = (message_unix_time - lower_time_stamp.unix_time) /
-                                                (upper_time_stamp.unix_time - lower_time_stamp.unix_time)
+                                            let lerp_t = (message_unix_time - older_time_stamp.unix_time) /
+                                                (newer_time_stamp.unix_time - older_time_stamp.unix_time)
                                             ;
                                             let message_position: Vec3 = position_package.position.clone().into();
-                                            let past_position = lower_time_stamp.position
-                                                .lerp(upper_time_stamp.position, lerp_t as f32);
+                                            let past_position = older_time_stamp.position
+                                                .lerp(newer_time_stamp.position, lerp_t as f32);
                                             let applied_correction = message_position - past_position;
 
-                                            for i in 0..=lower_index {
+                                            for i in 0..=older_index {
                                                 if let Some(timestamp) = past.0.get_mut(i) {
                                                     timestamp.position += applied_correction;
                                                 }
