@@ -378,6 +378,8 @@ fn player_movement_system(
             if keyboard.pressed(KeyCode::KeyA) { dir += right_2d; }
             if keyboard.pressed(KeyCode::KeyD) { dir -= right_2d; }
             if keyboard.just_pressed(KeyCode::Space) {
+                // TODO FIXME jump not predicted
+                velocity.0.z = 10.;
                 outgoing_sender.0.send(ClientMessage::jump(*net_id)).unwrap();
             }
 
