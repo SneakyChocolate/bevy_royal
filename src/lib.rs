@@ -521,9 +521,9 @@ impl<T> RingBuf<T> {
 
     pub fn push(&mut self, item: T) {
         if self.inner.len() == self.cap {
-            self.inner.pop_front();
+            self.inner.pop_back();
         }
-        self.inner.push_back(item);
+        self.inner.push_front(item);
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {

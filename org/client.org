@@ -725,6 +725,7 @@ fn receive_messages(
                                                 .lerp(upper_time_stamp.position, lerp_t as f32);
                                             let applied_correction = message_position - past_position;
                                             transform.translation += applied_correction;
+                                            // transform.translation = position_package.position.clone().into();
                                         }
                                         else {
                                             transform.translation = position_package.position.clone().into();
