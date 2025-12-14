@@ -31,7 +31,7 @@ struct PlayerMaterials {
 #[derive(Component)]
 struct Past(RingBuf<TimeStamp>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct TimeStamp {
     unix_time: u64,
     position: Vec3,
@@ -564,6 +564,29 @@ fn receive_messages(
                         for position_package in packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
                                 if let Ok((_, mut transform, controlled, past_option)) = transform_query.get_mut(*entity) {
+                                    // if the entity has past storage (which is only the client itself because of client prediction)
+                                    if let Some(past) = past_option {
+                                        // get the lower and upper timestamps from the past, interpolate the position to the received message timestamp and calculate the difference between that position and the position in the received message. that is the ammount that the past was wrongly calculated and needs to be fixed now (add diff to current pos)
+                                        let ( lower_index, lower_time_stamp ) = past.0
+                                            .iter()
+                                            .enumerate()
+                                            .find(|(i, time_stamp)| {time_stamp.unix_time < message_unix_time})
+                                            .unwrap()
+                                            .clone()
+                                        ;
+
+                                        // there can be a case where the past doesnt have a upper timestamp. if so, just take the present and interpolate between lower timestamp and present
+                                        let upper_time_stamp = if lower_index < 0 {
+                                            past.0.get(lower_index + 1).unwrap().clone()
+                                        }
+                                        else {
+                                            TimeStamp {
+                                                unix_time: unix_time.0,
+                                                position: transform.translation,
+                                            }
+                                        };
+                                    }
+
                                     transform.translation = position_package.position.clone().into();
                                     if !controlled {
                                         transform.rotation = position_package.rotation.clone().into();

@@ -529,6 +529,9 @@ impl<T> RingBuf<T> {
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.inner.iter()
     }
+    pub fn get(&self, i: usize) -> Option<&T> {
+        self.inner.get(i)
+    }
 }
 
 #[derive(Resource)]
