@@ -14,6 +14,9 @@ const FOG_COLOR: Color = Color::srgb(0.15, 0.20, 0.30);
 pub struct IncomingReceiver(crossbeam::channel::Receiver<ServerMessage>);
 
 #[derive(Resource)]
+pub struct NewestPositionUpdateUnixTime(u64);
+
+#[derive(Resource)]
 pub struct OutgoingSender(crossbeam::channel::Sender<ClientMessage>);
 
 #[derive(Resource, Default)]
@@ -147,7 +150,7 @@ fn main() {
             let mut removed = Vec::<ServerMessage>::new();
             delay_pool.retain_mut(|(d, sm)| {
                 *d += delta_secs;
-                if *d >= 0.2 { // TODO do something cool with that delay
+                if *d >= 0.5 { // TODO do something cool with that delay
                     removed.push(sm.clone());
                     false
                 }
@@ -169,6 +172,7 @@ fn main() {
         .insert_resource(CursorPos(Vec2::ZERO))
         .insert_resource(EntityMap::default())
         .insert_resource(NetIDMap::default())
+        .insert_resource(NewestPositionUpdateUnixTime(0))
         .insert_resource(Gravity::ZERO)
         // .insert_resource(Gravity(Vec3::NEG_Z))
         .add_plugins(DefaultPlugins)
@@ -397,6 +401,7 @@ fn receive_messages(
     mut velocity_query: Query<(Entity, &mut LinearVelocity, Has<Controlled>)>,
     mut health_query: Query<(Entity, &mut Health)>,
     unix_time: Res<UnixTime>,
+    mut newest_position_update_unix_time: ResMut<NewestPositionUpdateUnixTime>,
 ) {
 
     loop {
@@ -563,6 +568,12 @@ fn receive_messages(
                     },
 
                     ServerMessageInner::UpdatePositions{unix_time: message_unix_time, packages} => {
+                        // ignore older position updates
+                        if message_unix_time <= newest_position_update_unix_time.0 {
+                            continue;
+                        }
+                        newest_position_update_unix_time.0 = message_unix_time;
+
                         for position_package in packages {
                             if let Some(entity) = entity_map.0.get(&position_package.net_id) {
                                 if let Ok((_, mut transform, controlled, past_option)) = transform_query.get_mut(*entity) {
@@ -589,12 +600,12 @@ fn receive_messages(
                                                 }
                                             ;
 
-                                            let lerp_t = (message_unix_time - older_time_stamp.unix_time) /
-                                                (newer_time_stamp.unix_time - older_time_stamp.unix_time)
+                                            let lerp_t = (message_unix_time - older_time_stamp.unix_time) as f32 /
+                                                (newer_time_stamp.unix_time - older_time_stamp.unix_time) as f32
                                             ;
                                             let message_position: Vec3 = position_package.position.clone().into();
                                             let past_position = older_time_stamp.position
-                                                .lerp(newer_time_stamp.position, lerp_t as f32);
+                                                .lerp(newer_time_stamp.position, lerp_t);
                                             let applied_correction = message_position - past_position;
 
                                             for i in 0..=older_index {
