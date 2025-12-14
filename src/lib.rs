@@ -532,6 +532,9 @@ impl<T> RingBuf<T> {
     pub fn get(&self, i: usize) -> Option<&T> {
         self.inner.get(i)
     }
+    pub fn get_mut(&mut self, i: usize) -> Option<&mut T> {
+        self.inner.get_mut(i)
+    }
 }
 
 #[derive(Resource)]
