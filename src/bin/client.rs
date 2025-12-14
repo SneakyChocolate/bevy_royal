@@ -150,7 +150,7 @@ fn main() {
             let mut removed = Vec::<ServerMessage>::new();
             delay_pool.retain_mut(|(d, sm)| {
                 *d += delta_secs;
-                if *d >= 0.5 { // TODO do something cool with that delay
+                if *d >= 0.0 { // TODO do something cool with that delay
                     removed.push(sm.clone());
                     false
                 }
@@ -600,9 +600,14 @@ fn receive_messages(
                                                 }
                                             ;
 
-                                            let lerp_t = (message_unix_time - older_time_stamp.unix_time) as f32 /
-                                                (newer_time_stamp.unix_time - older_time_stamp.unix_time) as f32
-                                            ;
+                                            let time_diff = (newer_time_stamp.unix_time - older_time_stamp.unix_time) as f32;
+
+                                            let lerp_t = if time_diff > 0.0 {
+                                                (message_unix_time - older_time_stamp.unix_time) as f32 / time_diff
+                                            } else {
+                                                0.0
+                                            };
+
                                             let message_position: Vec3 = position_package.position.clone().into();
                                             let past_position = older_time_stamp.position
                                                 .lerp(newer_time_stamp.position, lerp_t);
