@@ -811,7 +811,7 @@ fn receive_messages(
 }
 #+end_src
 
-** cursor lock
+** cursor lock grab
 #+begin_src rust
 fn cursor_lock(
     mut cursor_options: Single<&mut CursorOptions, With<PrimaryWindow>>,

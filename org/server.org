@@ -43,7 +43,7 @@ struct ReliablePackage {
 fn main() {
 #+end_src
 
-*** networking thread
+*** networking thread socket
 #+begin_src rust
     let (incoming_sender, incoming_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ClientMessage)>();
     let (outgoing_sender, outgoing_receiver) = crossbeam::channel::unbounded::<(SocketAddr, ServerMessage)>();
