@@ -173,11 +173,8 @@ fn main() {
         .insert_resource(EntityMap::default())
         .insert_resource(NetIDMap::default())
         .insert_resource(NewestPositionUpdateUnixTime(0))
-        .insert_resource(Gravity::ZERO)
-        // .insert_resource(Gravity(Vec3::NEG_Z))
+        .insert_resource(Gravity(Vec3::NEG_Z * 19.))
         .add_plugins(DefaultPlugins)
-        // .add_plugins(EguiPlugin::default())
-        // .add_plugins(WorldInspectorPlugin::new())
         .add_plugins(UpdatePastPlugin)
         .add_plugins(UnixTimePlugin)
         .add_plugins(PhysicsPlugins::default())
@@ -215,9 +212,10 @@ fn setup(
     outgoing_sender.0.send(login_message).unwrap();
 
     commands.spawn((
-        // ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
-        // CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
-        // RigidBody::Static,
+        ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
+        CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
+        RigidBody::Static,
+        CollisionMargin(0.5),
 
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("map_shooter12.glb"),
@@ -226,9 +224,9 @@ fn setup(
     ));
 
     commands.spawn((
-        // ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
-        // CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
-        // RigidBody::Static,
+        ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
+        CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
+        RigidBody::Static,
 
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("map_trees1.glb"),
@@ -237,9 +235,9 @@ fn setup(
     ));
 
     commands.spawn((
-        // ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
-        // CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
-        // RigidBody::Static,
+        ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
+        CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
+        RigidBody::Static,
 
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("house1.glb"),
@@ -248,9 +246,9 @@ fn setup(
     ));
 
     commands.spawn((
-        // ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
-        // CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
-        // RigidBody::Static,
+        ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
+        CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
+        RigidBody::Static,
 
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("fiebigershof.glb"),
@@ -312,9 +310,11 @@ fn player_movement_system(
                 dir = dir.normalize();
             }
 
-            velocity.0 = (dir * speed).extend(0.);
+            velocity.0.x = dir.x * speed;;
+            velocity.0.y = dir.y * speed;;
         } else {
-            velocity.0 = Vec3::ZERO;
+            velocity.0.x = 0.;
+            velocity.0.y = 0.;
         }
 
         outgoing_sender.0.send(ClientMessage::setvelocity(*net_id, velocity.0.truncate().into())).unwrap();
