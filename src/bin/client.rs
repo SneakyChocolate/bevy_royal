@@ -224,10 +224,6 @@ fn setup(
     ));
 
     commands.spawn((
-        ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
-        CollisionLayers::new([Layer::Boundary], [Layer::Ball, Layer::Player]),
-        RigidBody::Static,
-
         SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("map_trees1.glb"),
         )),
@@ -255,7 +251,7 @@ fn setup(
         )),
         Transform::from_xyz(20., -20., 0.)
             .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(30.))
+            .with_scale(Vec3::splat(15.))
         ,
     ));
 

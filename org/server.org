@@ -810,7 +810,7 @@ fn setup(
         )),
         Transform::from_xyz(20., -20., 0.)
             .with_rotation(Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
-            .with_scale(Vec3::splat(30.))
+            .with_scale(Vec3::splat(15.))
         ,
     ));
 #+end_src
