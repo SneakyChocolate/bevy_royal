@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 
-RUSTFLAGS=-Awarnings cargo build -r --bins
+RUSTFLAGS=-Awarnings cargo build -r --workspace --all-targets
