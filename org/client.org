@@ -190,7 +190,7 @@ fn main() {
             let mut removed = Vec::<ServerMessage>::new();
             delay_pool.retain_mut(|(d, sm)| {
                 ,*d += delta_secs;
-                if *d >= 0.5 { // TODO do something cool with that delay
+                if *d >= 0.2 { // TODO do something cool with that delay
                     removed.push(sm.clone());
                     false
                 }
@@ -742,7 +742,7 @@ fn receive_messages(
                                             let message_position: Vec3 = position_package.position.clone().into();
                                             let past_position = older_time_stamp.position
                                                 .lerp(newer_time_stamp.position, lerp_t);
-                                            let applied_correction = message_position/* - past_position*/;
+                                            let applied_correction = message_position - past_position;
 
                                             for i in 0..=older_index {
                                                 if let Some(timestamp) = past.0.get_mut(i) {
@@ -754,7 +754,7 @@ fn receive_messages(
                                             transform.translation.z += applied_correction.z;
                                             info!("applied correction: {:?}", applied_correction);
                                             // toggle here to enable / disable prediction
-                                            transform.translation = position_package.position.clone().into();
+                                            // transform.translation = position_package.position.clone().into();
                                         }
                                         else {
                                             transform.translation = position_package.position.clone().into();

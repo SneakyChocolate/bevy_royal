@@ -94,7 +94,7 @@ fn main() {
             let mut removed = Vec::<( SocketAddr, ClientMessage )>::new();
             delay_pool.retain_mut(|(d, sm)| {
                 *d += delta_secs;
-                if *d >= 0.5 {
+                if *d >= 0.2 {
                     removed.push(sm.clone());
                     false
                 }

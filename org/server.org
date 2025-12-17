@@ -103,7 +103,7 @@ fn main() {
             }
 #+end_src
 
-**** received confirm so delete from pool, get from socket, send to game thread
+**** received confirm so delete from pool, get from socket, send to game thread, delay pool
 #+begin_src rust
             // get from socket
             let ServerSocket { socket, buf } = &mut server_socket;
@@ -121,7 +121,7 @@ fn main() {
             let mut removed = Vec::<( SocketAddr, ClientMessage )>::new();
             delay_pool.retain_mut(|(d, sm)| {
                 ,*d += delta_secs;
-                if *d >= 0.5 {
+                if *d >= 0.2 {
                     removed.push(sm.clone());
                     false
                 }
