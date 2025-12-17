@@ -150,7 +150,7 @@ fn main() {
             let mut removed = Vec::<ServerMessage>::new();
             delay_pool.retain_mut(|(d, sm)| {
                 *d += delta_secs;
-                if *d >= 0.5 { // TODO do something cool with that delay
+                if *d >= 0.0 { // TODO do something cool with that delay
                     removed.push(sm.clone());
                     false
                 }
@@ -614,11 +614,9 @@ fn receive_messages(
                                                     timestamp.position += applied_correction;
                                                 }
                                             }
-                                            // only apply the actual position correction if its relevant
-                                            if applied_correction.length() > 0.2 {
-                                                transform.translation += applied_correction;
-                                                info!("applied correction: {:?}", applied_correction);
-                                            }
+                                            transform.translation.x += applied_correction.x;
+                                            transform.translation.y += applied_correction.y;
+                                            info!("applied correction: {:?}", applied_correction);
                                             // toggle here to enable / disable prediction
                                             // transform.translation = position_package.position.clone().into();
                                         }
