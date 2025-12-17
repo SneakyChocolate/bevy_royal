@@ -150,7 +150,7 @@ fn main() {
             let mut removed = Vec::<ServerMessage>::new();
             delay_pool.retain_mut(|(d, sm)| {
                 *d += delta_secs;
-                if *d >= 0.2 { // TODO do something cool with that delay
+                if *d >= 0.0 { // TODO do something cool with that delay
                     removed.push(sm.clone());
                     false
                 }
