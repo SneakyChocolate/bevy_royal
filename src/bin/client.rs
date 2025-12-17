@@ -614,9 +614,12 @@ fn receive_messages(
                                                     timestamp.position += applied_correction;
                                                 }
                                             }
-
-                                            // TODO toggle here to enable / disable prediction
-                                            transform.translation += applied_correction;
+                                            // only apply the actual position correction if its relevant
+                                            if applied_correction.length() > 0.2 {
+                                                transform.translation += applied_correction;
+                                                info!("applied correction: {:?}", applied_correction);
+                                            }
+                                            // toggle here to enable / disable prediction
                                             // transform.translation = position_package.position.clone().into();
                                         }
                                         else {

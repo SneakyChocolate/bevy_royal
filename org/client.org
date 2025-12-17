@@ -105,7 +105,7 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
 #+end_src
 
-*** network thread
+*** network thread socket
 #+begin_src rust
     let server_address = args.get(1).cloned().unwrap_or("127.0.0.1:7878".to_string());
 
@@ -746,9 +746,12 @@ fn receive_messages(
                                                     timestamp.position += applied_correction;
                                                 }
                                             }
-
-                                            // TODO toggle here to enable / disable prediction
-                                            transform.translation += applied_correction;
+                                            // only apply the actual position correction if its relevant
+                                            if applied_correction.length() > 0.2 {
+                                                transform.translation += applied_correction;
+                                                info!("applied correction: {:?}", applied_correction);
+                                            }
+                                            // toggle here to enable / disable prediction
                                             // transform.translation = position_package.position.clone().into();
                                         }
                                         else {

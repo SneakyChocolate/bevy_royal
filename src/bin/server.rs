@@ -106,7 +106,6 @@ fn main() {
         ))
         .add_systems(Update, (
             receive_messages,
-            apply_velocity_system,
             enemy_kill_system,
             server_process_hits,
             broadcast_enemy_spawns,
@@ -745,16 +744,6 @@ fn spawn_enemies(
         net_id_map.0.insert(id, id_counter.0);
         entity_map.0.insert(id_counter.0, id);
         id_counter.0 += 1;
-    }
-}
-
-fn apply_velocity_system(
-    time: Res<Time>,
-    query: Query<(&mut Transform, &Velocity)>,
-) {
-    let d = time.delta_secs();
-    for (mut transform, velocity) in query {
-        transform.translation += velocity.0 * d;
     }
 }
 
