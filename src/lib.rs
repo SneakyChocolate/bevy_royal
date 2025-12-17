@@ -270,7 +270,7 @@ impl ServerMessage {
     }
 }
 
-#[derive(Encode, Decode, Debug)]
+#[derive(Encode, Decode, Debug, Clone)]
 pub struct ClientMessage {
     pub reliable: usize,
     pub message: ClientMessageInner,
@@ -315,7 +315,7 @@ impl ClientMessage {
     }
 }
 
-#[derive(Encode, Decode, Debug)]
+#[derive(Encode, Decode, Debug, Clone)]
 pub enum ClientMessageInner {
     Login,
     SetVelocity(NetIDType, MyVec2),

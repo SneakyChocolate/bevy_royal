@@ -39,11 +39,18 @@ fn main() {
         let socket = UdpSocket::bind("0.0.0.0:7878").unwrap();
         socket.set_nonblocking(true).unwrap();
         let mut server_socket = ServerSocket::new(socket);
+        let mut delay_pool: Vec<(f32, ( SocketAddr, ClientMessage ))> = Vec::with_capacity(1000);
+        let mut past = std::time::Instant::now();
 
         let mut reliable_counter = 1;
         let mut reliable_packages = HashMap::<usize, ReliablePackage>::new();
 
         loop {
+
+            // delta time
+            let present = std::time::Instant::now();
+            let delta_secs = present.duration_since(past).as_secs_f32();
+            past = present;
 
             // resend all important messegaes if they werent confirmed yet
             let now = std::time::Instant::now();
@@ -79,8 +86,25 @@ fn main() {
                     if let ClientMessageInner::Confirm(reliable) = &client_message {
                         reliable_packages.remove(reliable);
                     }
-                    incoming_sender.send((addr, ClientMessage {reliable, message: client_message})).unwrap();
+                    delay_pool.push((0.0, (addr, ClientMessage {reliable, message: client_message})));
                 }
+            }
+
+            // go through delay pool
+            let mut removed = Vec::<( SocketAddr, ClientMessage )>::new();
+            delay_pool.retain_mut(|(d, sm)| {
+                *d += delta_secs;
+                if *d >= 0.5 {
+                    removed.push(sm.clone());
+                    false
+                }
+                else {
+                    true
+                }
+            });
+
+            for message in removed {
+                incoming_sender.send(message).unwrap();
             }
 
             std::thread::sleep(std::time::Duration::from_millis(1));
