@@ -150,7 +150,7 @@ fn main() {
             let mut removed = Vec::<ServerMessage>::new();
             delay_pool.retain_mut(|(d, sm)| {
                 *d += delta_secs;
-                if *d >= 0.0 { // TODO do something cool with that delay
+                if *d >= 0.1 { // TODO do something cool with that delay
                     removed.push(sm.clone());
                     false
                 }
@@ -174,6 +174,7 @@ fn main() {
         .insert_resource(NetIDMap::default())
         .insert_resource(NewestPositionUpdateUnixTime(0))
         .insert_resource(Gravity(Vec3::NEG_Z * 19.))
+        // .insert_resource(Gravity::ZERO)
         .add_plugins(DefaultPlugins)
         .add_plugins(UpdatePastPlugin)
         .add_plugins(UnixTimePlugin)
@@ -298,7 +299,7 @@ fn player_movement_system(
             if keyboard.pressed(KeyCode::KeyD) { dir -= right_2d; }
             if keyboard.just_pressed(KeyCode::Space) {
                 // TODO FIXME jump not predicted
-                velocity.0.z = 10.;
+                // velocity.0.z = 10.;
                 outgoing_sender.0.send(ClientMessage::jump(*net_id)).unwrap();
             }
 
@@ -620,7 +621,7 @@ fn receive_messages(
                                             transform.translation.x += applied_correction.x;
                                             transform.translation.y += applied_correction.y;
                                             transform.translation.z += applied_correction.z;
-                                            info!("applied correction: {:?}", applied_correction);
+                                            // info!("applied correction: {:?}", applied_correction);
                                             // toggle here to enable / disable prediction
                                             // transform.translation = position_package.position.clone().into();
                                         }

@@ -50,6 +50,10 @@
                 wayland
                 wayland-protocols
                 libGL
+                #
+                rust-analyzer
+                rustc
+                cargo
               ];
             RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
             LD_LIBRARY_PATH = lib.makeLibraryPath [

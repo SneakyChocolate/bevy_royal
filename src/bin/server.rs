@@ -16,9 +16,13 @@ impl ServerSocket {
             buf: [0; 1000],
         }
     }
-    pub fn send_to(&self, bytes: &[u8], addr: SocketAddr) -> bool {
+    pub fn send_to(&self, bytes: &[u8], addr: SocketAddr, bps: &mut usize) -> bool {
         match self.socket.send_to(bytes, addr) {
-            Ok(l) => l == bytes.len(),
+            Ok(l) => {
+                let r = l == bytes.len();
+                if r {*bps += l;}
+                r
+            },
             Err(_) => false,
         }
     }
@@ -45,7 +49,10 @@ fn main() {
         let mut reliable_counter = 1;
         let mut reliable_packages = HashMap::<usize, ReliablePackage>::new();
 
+        let mut byte_count: usize = 0;
+
         loop {
+            byte_count = 0;
 
             // delta time
             let present = std::time::Instant::now();
@@ -56,7 +63,7 @@ fn main() {
             let now = std::time::Instant::now();
             for (_, packet) in reliable_packages.iter_mut() {
                 if now.duration_since(packet.last_send) > std::time::Duration::from_millis(300) {
-                    server_socket.send_to(&packet.bytes, packet.addr);
+                    server_socket.send_to(&packet.bytes, packet.addr, &mut byte_count);
                     packet.last_send = now;
                 }
             }
@@ -75,7 +82,7 @@ fn main() {
                     });
                     reliable_counter += 1;
                 }
-                server_socket.send_to(&bytes, addr);
+                server_socket.send_to(&bytes, addr, &mut byte_count);
             }
 
             // get from socket
@@ -94,7 +101,7 @@ fn main() {
             let mut removed = Vec::<( SocketAddr, ClientMessage )>::new();
             delay_pool.retain_mut(|(d, sm)| {
                 *d += delta_secs;
-                if *d >= 0.0 {
+                if *d >= 0.1 {
                     removed.push(sm.clone());
                     false
                 }
@@ -106,6 +113,9 @@ fn main() {
             for message in removed {
                 incoming_sender.send(message).unwrap();
             }
+
+            // print bytes per second
+            info!("bytes per second: {}", byte_count as f32 / delta_secs);
 
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
