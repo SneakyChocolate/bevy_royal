@@ -16,11 +16,11 @@ impl ServerSocket {
             buf: [0; 1000],
         }
     }
-    pub fn send_to(&self, bytes: &[u8], addr: SocketAddr, bps: &mut usize) -> bool {
+    pub fn send_to(&self, bytes: &[u8], addr: SocketAddr, byte_count: &mut usize) -> bool {
         match self.socket.send_to(bytes, addr) {
             Ok(l) => {
                 let r = l == bytes.len();
-                if r {*bps += l;}
+                if r {*byte_count += l;}
                 r
             },
             Err(_) => false,
@@ -62,11 +62,7 @@ fn main() {
             let delta_secs = present.duration_since(past).as_secs_f32();
             past = present;
 
-            if did_send_bytes {
-                last_sent_bytes = present;
-            }
             let delta_secs_last_sent_bytes = present.duration_since(last_sent_bytes).as_secs_f32();
-
 
             // resend all important messegaes if they werent confirmed yet
             let now = std::time::Instant::now();
@@ -127,6 +123,9 @@ fn main() {
             did_send_bytes = byte_count > 0;
             if did_send_bytes && delta_secs_last_sent_bytes != 0. {
                 info!("megabytes per second: {}", byte_count as f32 / delta_secs_last_sent_bytes / 1000000.);
+            }
+            if did_send_bytes {
+                last_sent_bytes = present;
             }
 
             std::thread::sleep(std::time::Duration::from_millis(1));

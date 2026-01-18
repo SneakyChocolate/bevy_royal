@@ -77,8 +77,16 @@ impl ClientSocket {
             target,
         }
     }
-    pub fn send(&self, bytes: &[u8]) {
-        self.socket.send_to(bytes, &self.target)/* .unwrap() */;
+    pub fn send(&self, bytes: &[u8], byte_count: &mut usize) -> bool {
+        match self.socket.send_to(bytes, &self.target) {
+            Ok(l) => {
+                let r = l == bytes.len();
+                if r {*byte_count += l;}
+                else {info!("nope");}
+                r
+            },
+            Err(_) => false,
+        }
     }
 }
 
@@ -94,22 +102,30 @@ fn main() {
         let mut client_socket = ClientSocket::new(server_address);
         let mut delay_pool: Vec<(f32, ServerMessage)> = Vec::with_capacity(1000);
         let mut past = std::time::Instant::now();
+        let mut last_sent_bytes = std::time::Instant::now();
 
         let mut reliable_counter = 1;
         let mut reliable_packages = HashMap::<usize, ReliablePackage>::new();
 
+        
+        let mut byte_count: usize = 0;
+        let mut did_send_bytes = true;
+
         loop {
+            byte_count = 0;
 
             // delta time
             let present = std::time::Instant::now();
             let delta_secs = present.duration_since(past).as_secs_f32();
             past = present;
 
+            let delta_secs_last_sent_bytes = present.duration_since(last_sent_bytes).as_secs_f32();
+
             // resend all important messegaes if they werent confirmed yet
             let now = present;
             for (_, packet) in reliable_packages.iter_mut() {
                 if now.duration_since(packet.last_send) > std::time::Duration::from_millis(300) {
-                    client_socket.send(&packet.bytes);
+                    client_socket.send(&packet.bytes, &mut byte_count);
                     packet.last_send = now;
                 }
             }
@@ -127,7 +143,7 @@ fn main() {
                     });
                     reliable_counter += 1;
                 }
-                client_socket.send(&bytes);
+                client_socket.send(&bytes, &mut byte_count);
             }
 
             // get from socket
@@ -163,6 +179,16 @@ fn main() {
                 incoming_sender.send(server_message).unwrap();
             }
 
+            // print bytes per second
+            did_send_bytes = byte_count > 0;
+            if did_send_bytes && delta_secs_last_sent_bytes != 0. {
+                info!("megabytes per second: {}", byte_count as f32 / delta_secs_last_sent_bytes / 1000000.);
+            }
+            if did_send_bytes {
+                last_sent_bytes = present;
+            }
+
+            std::thread::sleep(std::time::Duration::from_millis(1));
         }
     });
 
