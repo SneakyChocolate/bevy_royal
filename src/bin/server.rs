@@ -45,19 +45,28 @@ fn main() {
         let mut server_socket = ServerSocket::new(socket);
         let mut delay_pool: Vec<(f32, ( SocketAddr, ClientMessage ))> = Vec::with_capacity(1000);
         let mut past = std::time::Instant::now();
+        let mut last_sent_bytes = std::time::Instant::now();
 
         let mut reliable_counter = 1;
         let mut reliable_packages = HashMap::<usize, ReliablePackage>::new();
 
         let mut byte_count: usize = 0;
+        let mut did_send_bytes = true;
 
         loop {
             byte_count = 0;
 
             // delta time
             let present = std::time::Instant::now();
+
             let delta_secs = present.duration_since(past).as_secs_f32();
             past = present;
+
+            if did_send_bytes {
+                last_sent_bytes = present;
+            }
+            let delta_secs_last_sent_bytes = present.duration_since(last_sent_bytes).as_secs_f32();
+
 
             // resend all important messegaes if they werent confirmed yet
             let now = std::time::Instant::now();
@@ -115,7 +124,10 @@ fn main() {
             }
 
             // print bytes per second
-            info!("bytes per second: {}", byte_count as f32 / delta_secs);
+            did_send_bytes = byte_count > 0;
+            if did_send_bytes && delta_secs_last_sent_bytes != 0. {
+                info!("megabytes per second: {}", byte_count as f32 / delta_secs_last_sent_bytes / 1000000.);
+            }
 
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
