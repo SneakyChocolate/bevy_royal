@@ -103,16 +103,17 @@ fn main() {
         let mut delay_pool: Vec<(f32, ServerMessage)> = Vec::with_capacity(1000);
         let mut past = std::time::Instant::now();
         let mut last_sent_bytes = std::time::Instant::now();
+        let mut last_received_bytes = std::time::Instant::now();
 
         let mut reliable_counter = 1;
         let mut reliable_packages = HashMap::<usize, ReliablePackage>::new();
-
         
-        let mut byte_count: usize = 0;
-        let mut did_send_bytes = true;
+        let mut sent_byte_count: usize = 0;
+        let mut received_byte_count: usize = 0;
 
         loop {
-            byte_count = 0;
+            sent_byte_count = 0;
+            received_byte_count = 0;
 
             // delta time
             let present = std::time::Instant::now();
@@ -120,12 +121,13 @@ fn main() {
             past = present;
 
             let delta_secs_last_sent_bytes = present.duration_since(last_sent_bytes).as_secs_f32();
+            let delta_secs_last_received_bytes = present.duration_since(last_received_bytes).as_secs_f32();
 
             // resend all important messegaes if they werent confirmed yet
             let now = present;
             for (_, packet) in reliable_packages.iter_mut() {
                 if now.duration_since(packet.last_send) > std::time::Duration::from_millis(300) {
-                    client_socket.send(&packet.bytes, &mut byte_count);
+                    client_socket.send(&packet.bytes, &mut sent_byte_count);
                     packet.last_send = now;
                 }
             }
@@ -143,7 +145,7 @@ fn main() {
                     });
                     reliable_counter += 1;
                 }
-                client_socket.send(&bytes, &mut byte_count);
+                client_socket.send(&bytes, &mut sent_byte_count);
             }
 
             // get from socket
@@ -151,6 +153,7 @@ fn main() {
 
             while let Ok((len, _addr)) = socket.recv_from(buf) {
                 if let Some(ServerMessage {reliable, message: server_message}) = ServerMessage::decode(&buf[..len]) {
+                    received_byte_count += len;
                     if let ServerMessageInner::Confirm(reliable) = &server_message {
                         reliable_packages.remove(reliable);
                     }
@@ -180,12 +183,13 @@ fn main() {
             }
 
             // print bytes per second
-            did_send_bytes = byte_count > 0;
-            if did_send_bytes && delta_secs_last_sent_bytes != 0. {
-                info!("megabytes per second: {}", byte_count as f32 / delta_secs_last_sent_bytes / 1000000.);
-            }
-            if did_send_bytes {
+            if sent_byte_count > 0 && delta_secs_last_sent_bytes != 0. {
+                info!("upload per second: {}", sent_byte_count as f32 / delta_secs_last_sent_bytes / 1000000.);
                 last_sent_bytes = present;
+            }
+            if received_byte_count > 0 && delta_secs_last_received_bytes != 0. {
+                info!("download per second: {}", received_byte_count as f32 / delta_secs_last_received_bytes / 1000000.);
+                last_received_bytes = present;
             }
 
             std::thread::sleep(std::time::Duration::from_millis(1));
