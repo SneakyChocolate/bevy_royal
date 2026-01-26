@@ -125,11 +125,11 @@ fn main() {
 
             // print bytes per second
             if sent_byte_count > 0 && delta_secs_last_sent_bytes != 0. {
-                info!("upload per second: {}", sent_byte_count as f32 / delta_secs_last_sent_bytes / 1000000.);
+                // info!("upload per second: {}", sent_byte_count as f32 / delta_secs_last_sent_bytes / 1000000.);
                 last_sent_bytes = present;
             }
             if received_byte_count > 0 && delta_secs_last_received_bytes != 0. {
-                info!("download per second: {}", received_byte_count as f32 / delta_secs_last_received_bytes / 1000000.);
+                // info!("download per second: {}", received_byte_count as f32 / delta_secs_last_received_bytes / 1000000.);
                 last_received_bytes = present;
             }
 

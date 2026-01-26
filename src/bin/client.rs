@@ -184,11 +184,11 @@ fn main() {
 
             // print bytes per second
             if sent_byte_count > 0 && delta_secs_last_sent_bytes != 0. {
-                info!("upload per second: {}", sent_byte_count as f32 / delta_secs_last_sent_bytes / 1000000.);
+                // info!("upload per second: {}", sent_byte_count as f32 / delta_secs_last_sent_bytes / 1000000.);
                 last_sent_bytes = present;
             }
             if received_byte_count > 0 && delta_secs_last_received_bytes != 0. {
-                info!("download per second: {}", received_byte_count as f32 / delta_secs_last_received_bytes / 1000000.);
+                // info!("download per second: {}", received_byte_count as f32 / delta_secs_last_received_bytes / 1000000.);
                 last_received_bytes = present;
             }
 
@@ -203,8 +203,8 @@ fn main() {
         .insert_resource(EntityMap::default())
         .insert_resource(NetIDMap::default())
         .insert_resource(NewestPositionUpdateUnixTime(0))
-        // .insert_resource(Gravity(Vec3::NEG_Z * 19.))
-        .insert_resource(Gravity::ZERO)
+        .insert_resource(Gravity(Vec3::NEG_Z * 19.))
+        // .insert_resource(Gravity::ZERO)
         .add_plugins(DefaultPlugins)
         .add_plugins(UpdatePastPlugin)
         .add_plugins(UnixTimePlugin)
@@ -329,7 +329,7 @@ fn player_movement_system(
             if keyboard.pressed(KeyCode::KeyD) { dir -= right_2d; }
             if keyboard.just_pressed(KeyCode::Space) {
                 // TODO FIXME jump not predicted
-                // velocity.0.z = 10.;
+                velocity.0.z = 10.;
                 outgoing_sender.0.send(ClientMessage::jump(*net_id)).unwrap();
             }
 
@@ -651,7 +651,8 @@ fn receive_messages(
                                             transform.translation.x += applied_correction.x;
                                             transform.translation.y += applied_correction.y;
                                             transform.translation.z += applied_correction.z;
-                                            // info!("applied correction: {:?}", applied_correction);
+                                            info!("applied correction: {:?}", applied_correction);
+                                            info!("position package: {:?}", position_package.position);
                                             // toggle here to enable / disable prediction
                                             // transform.translation = position_package.position.clone().into();
                                         }
