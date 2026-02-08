@@ -29,6 +29,7 @@
                 # Rust dependencies
                 (rust-bin.stable.latest.default.override { extensions = [ "rust-src" ]; })
                 pkg-config
+                fish
               ]
               ++ lib.optionals (lib.strings.hasInfix "linux" system) [
                 # for Linux
@@ -52,8 +53,6 @@
                 libGL
                 #
                 rust-analyzer
-                rustc
-                cargo
               ];
             RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
             LD_LIBRARY_PATH = lib.makeLibraryPath [
@@ -66,6 +65,10 @@
               wayland
               libGL
             ];
+            shellHook = ''
+              export SHELL=${pkgs.fish}/bin/fish
+              exec fish
+            '';
           };
       }
     );
